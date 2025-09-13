@@ -1,0 +1,66 @@
+import dr1 from "../assets/drimages/dr.jpg";
+
+const doctors = [
+  {
+    id: 1,
+    name: "Shruti Singh",
+    specialization: "Skin",
+    experience: "10 years",
+    languages: "English / Hindi",
+    fee: "799",
+    image: dr1,
+    rating: 4.8,
+  },
+  {
+    id: 2,
+    name: "Aastha",
+    specialization: "Neurosurgery",
+    experience: "8 years",
+    languages: "English / Hindi",
+    fee: "1198",
+    image: dr1,
+    rating: 4.5,
+  },
+  {
+    id: 3,
+    name: "Tanya Kumari",
+    specialization: "General Practice",
+    experience: "5 years",
+    languages: "English / Hindi",
+    fee: "599",
+    image: dr1,
+    rating: 4.2,
+  },
+  {
+    id: 4,
+    name: "Kumkum",
+    specialization: "Pediatrics",
+    experience: "7 years",
+    languages: "English / Hindi",
+    fee: "699",
+    image: dr1,
+    rating: 4.8,
+  },
+  {
+    id: 5,
+    name: "Kumkum",
+    specialization: "Cardiology",
+    experience: "12 years",
+    languages: "English / Hindi",
+    fee: "899",
+    image: dr1,
+    rating: 4.8,
+  },
+  {
+    id: 6,
+    name: "newaastha",
+    specialization: "Neurology",
+    experience: "12 years",
+    languages: "English / Hindi",
+    fee: "12000",
+    image: dr1,
+    rating: 4.8,
+  },
+];
+
+export default doctors;

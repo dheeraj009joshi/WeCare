@@ -1,0 +1,1030 @@
+{
+	"info": {
+		"name": "WeCure Healthcare Platform API",
+		"description": "Complete API collection for WeCure healthcare platform with Google Calendar integration, 30-minute time slots, and email notifications",
+		"version": "2.0.0",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:4000",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "doctor_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "doctor_id",
+			"value": "68c24e68d49ff566476951f3",
+			"type": "string"
+		},
+		{
+			"key": "appointment_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "🏥 Health Check",
+			"item": [
+				{
+					"name": "Root Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": ["{{base_url}}"],
+							"path": [""]
+						}
+					}
+				},
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/health",
+							"host": ["{{base_url}}"],
+							"path": ["api", "health"]
+						}
+					}
+				},
+				{
+					"name": "Features List",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/features",
+							"host": ["{{base_url}}"],
+							"path": ["api", "features"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "User Registration",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('user_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Patient\",\n  \"email\": \"patient@example.com\",\n  \"password\": \"testpass123\",\n  \"phone\": \"+1234567890\",\n  \"address\": \"123 Main St, City, State\",\n  \"date_of_birth\": \"1990-01-01\",\n  \"gender\": \"male\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "User Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', response.access_token);",
+									"    pm.collectionVariables.set('user_id', response.user_id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "patient@example.com",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "testpass123",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Doctor Registration",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('doctor_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Dr. Jane Smith\",\n  \"email\": \"doctor@example.com\",\n  \"password\": \"testpass123\",\n  \"phone\": \"+1234567891\",\n  \"specialization\": \"General Medicine\",\n  \"medical_license\": \"MD123456789\",\n  \"experience_years\": 10,\n  \"consultation_fee\": 150.00,\n  \"bio\": \"Experienced general practitioner with 10+ years in healthcare\",\n  \"address\": \"456 Medical Center Dr, City, State\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/doctor/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "doctor", "register"]
+						}
+					}
+				},
+				{
+					"name": "Doctor Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('doctor_token', response.access_token);",
+									"    pm.collectionVariables.set('doctor_id', response.user_id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "doctor@example.com",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "testpass123",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/doctor/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "doctor", "login"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📅 Appointments & Availability",
+			"item": [
+				{
+					"name": "📋 Appointment Management",
+					"item": [
+						{
+							"name": "Get User Appointments",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/appointments/?skip=0&limit=10&status=pending",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", ""],
+									"query": [
+										{
+											"key": "skip",
+											"value": "0"
+										},
+										{
+											"key": "limit",
+											"value": "10"
+										},
+										{
+											"key": "status",
+											"value": "pending"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Doctor Appointments",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{doctor_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/appointments/doctor?date=2025-09-15&status=pending",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", "doctor"],
+									"query": [
+										{
+											"key": "date",
+											"value": "2025-09-15"
+										},
+										{
+											"key": "status",
+											"value": "pending"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Book Appointment (with Calendar & Email)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    const response = pm.response.json();",
+											"    pm.collectionVariables.set('appointment_id', response.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"doctor_id\": \"{{doctor_id}}\",\n  \"appointment_date\": \"2025-09-15\",\n  \"appointment_time\": \"10:00\",\n  \"symptoms\": \"Regular checkup and health consultation\",\n  \"consultation_fee\": 150.00\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/appointments/",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", ""]
+								}
+							}
+						},
+						{
+							"name": "Get Appointment by ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/appointments/{{appointment_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", "{{appointment_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Update Appointment",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"status\": \"confirmed\",\n  \"symptoms\": \"Updated symptoms description\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/appointments/{{appointment_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", "{{appointment_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Cancel Appointment",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/appointments/{{appointment_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", "{{appointment_id}}"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "🕐 30-Minute Time Slots & Availability",
+					"item": [
+						{
+							"name": "Get Doctor Available Slots (Daily)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/appointments/doctor/{{doctor_id}}/available-slots?date=2025-09-15",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", "doctor", "{{doctor_id}}", "available-slots"],
+									"query": [
+										{
+											"key": "date",
+											"value": "2025-09-15",
+											"description": "Date in YYYY-MM-DD format"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Doctor Weekly Availability",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/appointments/doctor/{{doctor_id}}/availability-week?start_date=2025-09-15",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", "doctor", "{{doctor_id}}", "availability-week"],
+									"query": [
+										{
+											"key": "start_date",
+											"value": "2025-09-15",
+											"description": "Start date for 7-day availability window"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Alternative Available Slots",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/appointments/available-slots/{{doctor_id}}?date=2025-09-15",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", "available-slots", "{{doctor_id}}"],
+									"query": [
+										{
+											"key": "date",
+											"value": "2025-09-15"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Doctor Availability Settings",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/appointments/doctor/{{doctor_id}}/availability",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", "doctor", "{{doctor_id}}", "availability"]
+								}
+							}
+						},
+						{
+							"name": "Create Doctor Availability",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{doctor_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"day_of_week\": 1,\n  \"start_time\": \"09:00\",\n  \"end_time\": \"17:00\",\n  \"is_available\": true,\n  \"max_appointments\": 16\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/appointments/doctor/availability",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", "doctor", "availability"]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "💊 Medicine Store",
+			"item": [
+				{
+					"name": "Get All Medicines",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/medicine-store/?skip=0&limit=20&category=general",
+							"host": ["{{base_url}}"],
+							"path": ["api", "medicine-store", ""],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "category",
+									"value": "general"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Add Medicine to Cart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"medicine_id\": \"507f1f77bcf86cd799439011\",\n  \"quantity\": 2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/medicine-store/cart/add",
+							"host": ["{{base_url}}"],
+							"path": ["api", "medicine-store", "cart", "add"]
+						}
+					}
+				},
+				{
+					"name": "Get Cart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/medicine-store/cart",
+							"host": ["{{base_url}}"],
+							"path": ["api", "medicine-store", "cart"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🍔 Food Delivery",
+			"item": [
+				{
+					"name": "Get All Restaurants",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/food-delivery/restaurants?skip=0&limit=20&location=city",
+							"host": ["{{base_url}}"],
+							"path": ["api", "food-delivery", "restaurants"],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "location",
+									"value": "city"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Restaurant Menu",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/food-delivery/restaurants/507f1f77bcf86cd799439011/menu",
+							"host": ["{{base_url}}"],
+							"path": ["api", "food-delivery", "restaurants", "507f1f77bcf86cd799439011", "menu"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "💬 Chat & AI",
+			"item": [
+				{
+					"name": "Get Chat Sessions",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/chat/sessions",
+							"host": ["{{base_url}}"],
+							"path": ["api", "chat", "sessions"]
+						}
+					}
+				},
+				{
+					"name": "Create Chat Session",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Health Consultation\",\n  \"description\": \"AI-powered health guidance session\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/chat/sessions",
+							"host": ["{{base_url}}"],
+							"path": ["api", "chat", "sessions"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🚨 Emergency Services",
+			"item": [
+				{
+					"name": "Create Emergency Request",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"emergency_type\": \"medical\",\n  \"description\": \"Chest pain and difficulty breathing\",\n  \"location\": {\n    \"latitude\": 40.7128,\n    \"longitude\": -74.0060,\n    \"address\": \"123 Emergency St, New York, NY\"\n  },\n  \"contact_number\": \"+1234567890\",\n  \"severity\": \"high\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/emergency/request",
+							"host": ["{{base_url}}"],
+							"path": ["api", "emergency", "request"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🛠️ Services",
+			"item": [
+				{
+					"name": "Get All Services",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/services/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "services", ""]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📞 Contact & Support",
+			"item": [
+				{
+					"name": "Submit Contact Form",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"subject\": \"Platform Inquiry\",\n  \"message\": \"I have questions about the appointment booking system\",\n  \"category\": \"general\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/contact/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "contact", ""]
+						}
+					}
+				},
+				{
+					"name": "Newsletter Subscription",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"subscriber@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/contact/newsletter",
+							"host": ["{{base_url}}"],
+							"path": ["api", "contact", "newsletter"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "⚙️ Testing Scenarios",
+			"item": [
+				{
+					"name": "🧪 Appointment Booking Flow Test",
+					"item": [
+						{
+							"name": "1. Register Patient",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('Patient registration successful', function () {",
+											"    pm.response.to.have.status(200);",
+											"    const response = pm.response.json();",
+											"    pm.expect(response).to.have.property('id');",
+											"    pm.collectionVariables.set('user_id', response.id);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Test Patient\",\n  \"email\": \"testpatient{{$randomInt}}@example.com\",\n  \"password\": \"testpass123\",\n  \"phone\": \"+1{{$randomInt}}\",\n  \"address\": \"123 Test St\",\n  \"date_of_birth\": \"1990-01-01\",\n  \"gender\": \"male\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/auth/register",
+									"host": ["{{base_url}}"],
+									"path": ["api", "auth", "register"]
+								}
+							}
+						},
+						{
+							"name": "2. Login Patient",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('Patient login successful', function () {",
+											"    pm.response.to.have.status(200);",
+											"    const response = pm.response.json();",
+											"    pm.expect(response).to.have.property('access_token');",
+											"    pm.collectionVariables.set('access_token', response.access_token);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/x-www-form-urlencoded"
+									}
+								],
+								"body": {
+									"mode": "urlencoded",
+									"urlencoded": [
+										{
+											"key": "username",
+											"value": "patient@example.com",
+											"type": "text"
+										},
+										{
+											"key": "password",
+											"value": "testpass123",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/api/auth/login",
+									"host": ["{{base_url}}"],
+									"path": ["api", "auth", "login"]
+								}
+							}
+						},
+						{
+							"name": "3. Check Doctor Availability",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('Availability endpoint accessible', function () {",
+											"    // Should return either 200 with slots or 404 for invalid doctor",
+											"    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+											"    if (pm.response.code === 200) {",
+											"        const response = pm.response.json();",
+											"        pm.expect(response).to.have.property('available_slots');",
+											"    }",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/appointments/doctor/507f1f77bcf86cd799439011/available-slots?date=2025-09-15",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", "doctor", "507f1f77bcf86cd799439011", "available-slots"],
+									"query": [
+										{
+											"key": "date",
+											"value": "2025-09-15"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "4. Test Appointment Booking",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('Appointment booking test', function () {",
+											"    // Should return 404 for invalid doctor or 200 for successful booking",
+											"    pm.expect(pm.response.code).to.be.oneOf([200, 400, 404]);",
+											"    if (pm.response.code === 200) {",
+											"        const response = pm.response.json();",
+											"        pm.expect(response).to.have.property('id');",
+											"        pm.collectionVariables.set('appointment_id', response.id);",
+											"    }",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"doctor_id\": \"507f1f77bcf86cd799439011\",\n  \"appointment_date\": \"2025-09-15\",\n  \"appointment_time\": \"10:00\",\n  \"symptoms\": \"Test appointment with calendar and email integration\",\n  \"consultation_fee\": 150.00\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/appointments/",
+									"host": ["{{base_url}}"],
+									"path": ["api", "appointments", ""]
+								}
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}
