@@ -9,7 +9,8 @@ import {
   Legend,
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { doctorDashboardService } from "../services/doctorService";
 
 ChartJS.register(
   CategoryScale,
@@ -25,26 +26,35 @@ import { Stethoscope } from "lucide-react";
 
 const DoctorEarnings = () => {
   const [view, setView] = useState("weekly");
+  const [weeklyData, setWeeklyData] = useState([]);
+  const [monthlyData, setMonthlyData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const weeklyData = [
-    { date: "Jul 01", earnings: 5000 },
-    { date: "Jul 02", earnings: 7200 },
-    { date: "Jul 03", earnings: 8800 },
-    { date: "Jul 04", earnings: 4300 },
-    { date: "Jul 05", earnings: 12000 },
-    { date: "Jul 06", earnings: 9000 },
-    { date: "Jul 07", earnings: 6500 },
-  ];
+  useEffect(() => {
+    const fetchEarningsData = async () => {
+      try {
+        setLoading(true);
+        // Fetch real earnings data from API
+        const earningsData = await doctorDashboardService.getEarnings();
+        
+        // Process and set the data
+        setWeeklyData(earningsData.weekly || []);
+        setMonthlyData(earningsData.monthly || []);
+        
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching earnings data:", error);
+        setError("Failed to load earnings data");
+        // Set empty arrays instead of dummy data
+        setWeeklyData([]);
+        setMonthlyData([]);
+        setLoading(false);
+      }
+    };
 
-  const monthlyData = [
-    { date: "Jan", earnings: 45000 },
-    { date: "Feb", earnings: 52000 },
-    { date: "Mar", earnings: 61000 },
-    { date: "Apr", earnings: 58000 },
-    { date: "May", earnings: 73000 },
-    { date: "Jun", earnings: 68000 },
-    { date: "Jul", earnings: 77000 },
-  ];
+    fetchEarningsData();
+  }, []);
 
   const currentData = view === "weekly" ? weeklyData : monthlyData;
 
@@ -121,7 +131,24 @@ const DoctorEarnings = () => {
             <option value="monthly">Monthly</option>
           </select>
         </div>
-        <Chart data={chartData} options={chartOptions} />
+        
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+          </div>
+        ) : error ? (
+          <div className="text-center py-20">
+            <p className="text-red-600 mb-4">{error}</p>
+            <p className="text-gray-500">Unable to load earnings data</p>
+          </div>
+        ) : currentData.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-gray-500 mb-4">📊 No earnings data available</p>
+            <p className="text-sm text-gray-400">Start accepting appointments to see your earnings</p>
+          </div>
+        ) : (
+          <Chart data={chartData} options={chartOptions} />
+        )}
       </div>
     </div>
   );

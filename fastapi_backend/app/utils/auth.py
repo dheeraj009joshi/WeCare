@@ -52,10 +52,14 @@ async def get_current_doctor(
     
     try:
         token = credentials.credentials
+        print(f"🔐 Doctor auth: Received token: {token[:20]}..." if token else "🔐 Doctor auth: No token received")
         doctor_id = decode_token(token)
+        print(f"🔐 Doctor auth: Decoded doctor_id: {doctor_id}")
         if doctor_id is None:
+            print("🔐 Doctor auth: Failed to decode token")
             raise credentials_exception
-    except Exception:
+    except Exception as e:
+        print(f"🔐 Doctor auth: Exception during token validation: {str(e)}")
         raise credentials_exception
     
     doctor_data = await db.doctors.find_one({"_id": ObjectId(doctor_id)})
@@ -75,6 +79,14 @@ async def get_current_doctor(
     if "address" in doctor_data and "clinic_address" not in doctor_data:
         doctor_data["clinic_address"] = doctor_data["address"]
     
+    # Add required fields if missing
+    from datetime import datetime
+    if "created_at" not in doctor_data:
+        doctor_data["created_at"] = datetime.utcnow()
+    if "updated_at" not in doctor_data:
+        doctor_data["updated_at"] = datetime.utcnow()
+    
+    print(f"🔐 Doctor auth: Creating DoctorInDB with keys: {list(doctor_data.keys())}")
     return DoctorInDB(**doctor_data)
 
 async def get_current_active_user(

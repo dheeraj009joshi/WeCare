@@ -5,7 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel
 from datetime import timedelta, datetime
 from ..core.database import get_database
-from ..core.security import create_access_token, get_password_hash
+from ..core.security import create_access_token, get_password_hash, create_token_pair, verify_refresh_token
 from ..models.user import UserCreate, User
 from ..models.doctor import DoctorCreate, Doctor
 from ..utils.auth import authenticate_user, authenticate_doctor
@@ -23,6 +23,11 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     user_type: str
+    refresh_token: str = None
+    expires_in: int = None
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 class UserResponse(BaseModel):
     user: User
@@ -423,3 +428,44 @@ async def _handle_google_doctor_auth(user_info: dict, db: AsyncIOMotorDatabase):
         )
         
         return DoctorResponse(doctor=doctor, token=token)
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(
+    refresh_request: RefreshTokenRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Refresh access token using refresh token"""
+    user_id = verify_refresh_token(refresh_request.refresh_token)
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Check if user or doctor exists
+    user_data = await db.users.find_one({"_id": ObjectId(user_id)})
+    doctor_data = await db.doctors.find_one({"_id": ObjectId(user_id)})
+    
+    if not user_data and not doctor_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Create new access token
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+    access_token = create_access_token(
+        subject=user_id, expires_delta=access_token_expires
+    )
+    
+    # Determine user type
+    user_type = "doctor" if doctor_data else "user"
+    
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        user_type=user_type,
+        expires_in=settings.access_token_expire_minutes * 60
+    )

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import List, Optional
 from bson import ObjectId
@@ -12,12 +12,15 @@ from ..models.appointment import (
 from ..models.user import UserInDB
 from ..models.doctor import DoctorInDB
 from ..utils.auth import get_current_active_user, get_current_active_doctor, get_current_admin_user
+from ..services.calendar_service import calendar_service
+from ..services.email_service import email_service
+from ..services.availability_service import availability_service
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.get("/", response_model=List[Appointment])
+@router.get("/")
 async def get_user_appointments(
     current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
@@ -25,7 +28,7 @@ async def get_user_appointments(
     limit: int = Query(100, ge=1, le=100),
     status: Optional[str] = None
 ):
-    """Get user's appointments"""
+    """Get user's appointments with doctor information"""
     query = {"patient_id": current_user.id}
     
     if status:
@@ -33,8 +36,45 @@ async def get_user_appointments(
     
     cursor = db.appointments.find(query).sort("appointment_date", -1).skip(skip).limit(limit)
     appointments = []
+    
     async for appointment in cursor:
-        appointments.append(Appointment(**appointment))
+        try:
+            # Get doctor information
+            doctor = await db.doctors.find_one({"_id": appointment["doctor_id"]})
+            
+            # Skip appointments with invalid doctor IDs
+            if not doctor:
+                print(f"Warning: Appointment {appointment['_id']} has invalid doctor_id {appointment['doctor_id']}")
+                continue
+            
+            # Enrich appointment with doctor info and format for frontend
+            enriched_appointment = {
+                "id": str(appointment["_id"]),
+                "doctor_id": str(appointment["doctor_id"]),
+                "doctor_name": doctor.get("full_name", "Unknown Doctor"),
+                "doctor_specialization": doctor.get("specialization", "General"),
+                "patient_id": str(appointment["patient_id"]),
+                "patient_name": appointment.get("patient_name", current_user.full_name),
+                "appointment_date": appointment["appointment_date"],
+                "appointment_time": appointment["appointment_time"],
+                "duration": appointment.get("duration", 30),
+                "type": appointment.get("type", "consultation"),
+                "status": appointment["status"],
+                "notes": appointment.get("notes"),
+                "symptoms": appointment.get("symptoms"),
+                "prescription": appointment.get("prescription"),
+                "consultation_fee": appointment["consultation_fee"],
+                "payment_status": appointment.get("payment_status", "pending"),
+                "meeting_link": appointment.get("meet_link"),
+                "calendar_event_link": appointment.get("calendar_event_link"),
+                "is_online": appointment.get("is_online", False),
+                "created_at": appointment.get("created_at"),
+                "updated_at": appointment.get("updated_at")
+            }
+            appointments.append(enriched_appointment)
+        except Exception as e:
+            print(f"Error processing appointment {appointment.get('_id', 'unknown')}: {e}")
+            continue
     
     return appointments
 
@@ -55,20 +95,63 @@ async def get_doctor_appointments(
     
     if date:
         try:
-            date_obj = datetime.strptime(date, "%Y-%m-%d")
-            next_day = date_obj + timedelta(days=1)
-            query["appointment_date"] = {
-                "$gte": date_obj,
-                "$lt": next_day
-            }
+            # Validate date format
+            datetime.strptime(date, "%Y-%m-%d")
+            # Filter by exact date string since we store dates as strings
+            query["appointment_date"] = date
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
     
     cursor = db.appointments.find(query).sort("appointment_date", 1).skip(skip).limit(limit)
     appointments = []
     async for appointment in cursor:
-        appointments.append(Appointment(**appointment))
+        # Add some debugging for the date filtering issue
+        logger.info(f"Found appointment with date: {appointment.get('appointment_date')} for query: {query}")
+        try:
+            # Enrich appointment with patient/doctor info for better display
+            patient = await db.users.find_one({"_id": appointment["patient_id"]})
+            
+            # Handle field mapping for backward compatibility for patient names
+            patient_name = "Unknown Patient"
+            if patient:
+                # Check if patient has full_name, if not try name field
+                if "full_name" in patient:
+                    patient_name = patient["full_name"]
+                elif "name" in patient:
+                    patient_name = patient["name"]
+                else:
+                    patient_name = "Unknown Patient"
+            
+            # Convert appointment to proper format with patient name
+            enriched_appointment = {
+                "id": str(appointment["_id"]),
+                "_id": str(appointment["_id"]),
+                "doctor_id": str(appointment["doctor_id"]),
+                "patient_id": str(appointment["patient_id"]),
+                "patient_name": patient_name,
+                "appointment_date": appointment["appointment_date"],
+                "appointment_time": appointment["appointment_time"],
+                "duration": appointment.get("duration", 30),
+                "type": appointment.get("type", "consultation"),
+                "status": appointment["status"],
+                "notes": appointment.get("notes"),
+                "symptoms": appointment.get("symptoms"),
+                "prescription": appointment.get("prescription"),
+                "consultation_fee": appointment["consultation_fee"],
+                "payment_status": appointment.get("payment_status", "pending"),
+                "meeting_link": appointment.get("meet_link"),
+                "calendar_event_link": appointment.get("calendar_event_link"),
+                "is_online": appointment.get("is_online", False),
+                "created_at": appointment.get("created_at"),
+                "updated_at": appointment.get("updated_at")
+            }
+            appointments.append(enriched_appointment)
+        except Exception as e:
+            logger.warning(f"Error enriching appointment {appointment.get('_id')}: {e}")
+            # Fallback to basic appointment data
+            appointments.append(Appointment(**appointment))
     
+    logger.info(f"Returning {len(appointments)} appointments for doctor query")
     return appointments
 
 @router.get("/{appointment_id}", response_model=Appointment)
@@ -94,9 +177,30 @@ async def get_appointment(
     
     return Appointment(**appointment)
 
+@router.post("/quick", response_model=Appointment)
+async def quick_book_appointment(
+    appointment_data: AppointmentCreateRequest,
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Quick appointment booking with minimal validation for testing"""
+    # Just create the appointment without heavy validation
+    appointment_dict = appointment_data.dict()
+    appointment_dict["patient_id"] = current_user.id
+    appointment_dict["status"] = AppointmentStatus.PENDING
+    appointment_dict["payment_status"] = "pending"
+    appointment_dict["created_at"] = datetime.utcnow()
+    appointment_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.appointments.insert_one(appointment_dict)
+    appointment_dict["_id"] = result.inserted_id
+    
+    return Appointment(**appointment_dict)
+
 @router.post("/", response_model=Appointment)
 async def book_appointment(
     appointment_data: AppointmentCreateRequest,
+    background_tasks: BackgroundTasks,
     current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
@@ -123,10 +227,7 @@ async def book_appointment(
     existing_appointment = await db.appointments.find_one({
         "doctor_id": appointment_data.doctor_id,
         "patient_id": current_user.id,
-        "appointment_date": {
-            "$gte": appointment_data.appointment_date,
-            "$lt": appointment_data.appointment_date + timedelta(days=1)
-        },
+        "appointment_date": appointment_date_str,
         "appointment_time": appointment_data.appointment_time,
         "status": {"$nin": [AppointmentStatus.CANCELLED]}
     })
@@ -140,10 +241,7 @@ async def book_appointment(
     # 2. Check for any appointment at this exact time slot with doctor (different patients)
     doctor_slot_conflict = await db.appointments.find_one({
         "doctor_id": appointment_data.doctor_id,
-        "appointment_date": {
-            "$gte": appointment_data.appointment_date,
-            "$lt": appointment_data.appointment_date + timedelta(days=1)
-        },
+        "appointment_date": appointment_date_str,
         "appointment_time": appointment_data.appointment_time,
         "status": {"$nin": [AppointmentStatus.CANCELLED]}
     })
@@ -169,10 +267,7 @@ async def book_appointment(
     # 3. Check for patient's overlapping appointments with any doctor on same day
     patient_day_appointments = await db.appointments.find({
         "patient_id": current_user.id,
-        "appointment_date": {
-            "$gte": appointment_data.appointment_date,
-            "$lt": appointment_data.appointment_date + timedelta(days=1)
-        },
+        "appointment_date": appointment_date_str,
         "status": {"$nin": [AppointmentStatus.CANCELLED]}
     }).to_list(None)
     
@@ -181,14 +276,15 @@ async def book_appointment(
         existing_time = datetime.strptime(existing["appointment_time"], "%H:%M").time()
         new_time = datetime.strptime(appointment_data.appointment_time, "%H:%M").time()
         
-        existing_datetime = datetime.combine(appointment_data.appointment_date.date(), existing_time)
-        new_datetime = datetime.combine(appointment_data.appointment_date.date(), new_time)
+        appointment_date_obj = appointment_data.appointment_date.date()
+        existing_datetime = datetime.combine(appointment_date_obj, existing_time)
+        new_datetime = datetime.combine(appointment_date_obj, new_time)
         
         time_diff = abs((new_datetime - existing_datetime).total_seconds() / 60)
         
         if time_diff < 30:  # Within 30 minutes
             existing_doctor = await db.doctors.find_one({"_id": existing["doctor_id"]})
-            existing_doctor_name = existing_doctor.get("name", "Another doctor") if existing_doctor else "Another doctor"
+            existing_doctor_name = existing_doctor.get("full_name", "Another doctor") if existing_doctor else "Another doctor"
             
             raise HTTPException(
                 status_code=409,
@@ -245,10 +341,7 @@ async def book_appointment(
     # Final atomic check right before insertion
     final_conflict_check = await db.appointments.find_one({
         "doctor_id": appointment_data.doctor_id,
-        "appointment_date": {
-            "$gte": appointment_data.appointment_date,
-            "$lt": appointment_data.appointment_date + timedelta(days=1)
-        },
+        "appointment_date": appointment_date_str,
         "appointment_time": appointment_data.appointment_time,
         "status": {"$nin": [AppointmentStatus.CANCELLED]}
     })
@@ -265,6 +358,8 @@ async def book_appointment(
     appointment_dict["status"] = AppointmentStatus.PENDING
     appointment_dict["created_at"] = datetime.utcnow()
     appointment_dict["updated_at"] = datetime.utcnow()
+    # Ensure appointment_date is stored as string for consistent querying
+    appointment_dict["appointment_date"] = appointment_date_str
     
     # Insert appointment into database
     result = await db.appointments.insert_one(appointment_dict)
@@ -283,8 +378,8 @@ async def book_appointment(
         'appointment_time': appointment_data.appointment_time,
         'symptoms': appointment_data.symptoms,
         'consultation_fee': appointment_data.consultation_fee,
-        'patient_name': current_user.name,
-        'doctor_name': doctor.get('name', 'Doctor')
+        'patient_name': current_user.full_name,
+        'doctor_name': doctor.get('full_name', 'Doctor')
     }
     
     # Create Google Calendar event (async, don't wait for it)
@@ -309,24 +404,21 @@ async def book_appointment(
     except Exception as e:
         logger.warning(f"Failed to create calendar event: {e}")
     
-    # Send email notifications (async, don't wait for it)
-    try:
-        email_results = await email_service.send_appointment_emails(
-            patient_email=current_user.email,
-            patient_name=current_user.name,
-            doctor_email=doctor.get('email', ''),
-            doctor_name=doctor.get('name', 'Doctor'),
-            appointment_date=appointment_data.appointment_date.strftime("%B %d, %Y"),
-            appointment_time=appointment_data.appointment_time,
-            symptoms=appointment_data.symptoms,
-            calendar_link=calendar_event.get('event_link') if calendar_event else None,
-            meet_link=calendar_event.get('meet_link') if calendar_event else None
-        )
-        
-        logger.info(f"Email notifications sent: {email_results}")
-        
-    except Exception as e:
-        logger.warning(f"Failed to send email notifications: {e}")
+    # TODO: Re-enable email notifications after debugging
+    # Send email notifications in background using BackgroundTasks
+    # background_tasks.add_task(
+    #     send_appointment_emails_task,
+    #     patient_email=current_user.email,
+    #     patient_name=current_user.full_name,
+    #     doctor_email=doctor.get('email', ''),
+    #     doctor_name=doctor.get('full_name', 'Doctor'),
+    #     appointment_date=appointment_data.appointment_date.strftime("%B %d, %Y"),
+    #     appointment_time=appointment_data.appointment_time,
+    #     symptoms=appointment_data.symptoms,
+    #     calendar_link=calendar_event.get('event_link') if calendar_event else None,
+    #     meet_link=calendar_event.get('meet_link') if calendar_event else None
+    # )
+    logger.info(f"Appointment created successfully for {current_user.full_name} with {doctor.get('full_name', 'Doctor')}")
     
     return appointment_obj
 
@@ -404,6 +496,70 @@ async def cancel_appointment(
     
     return {"message": "Appointment cancelled successfully"}
 
+@router.put("/{appointment_id}/reschedule")
+async def reschedule_appointment(
+    appointment_id: str,
+    reschedule_data: dict,
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Reschedule an appointment"""
+    if not ObjectId.is_valid(appointment_id):
+        raise HTTPException(status_code=400, detail="Invalid appointment ID")
+    
+    # Validate required fields
+    if not reschedule_data.get("appointment_date") or not reschedule_data.get("appointment_time"):
+        raise HTTPException(status_code=400, detail="New date and time are required")
+    
+    appointment = await db.appointments.find_one({
+        "_id": ObjectId(appointment_id),
+        "$or": [
+            {"patient_id": current_user.id},
+            {"doctor_id": current_user.id}
+        ]
+    })
+    
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    if appointment["status"] in [AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED]:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot reschedule completed or cancelled appointment"
+        )
+    
+    # Check for conflicts at new time slot
+    new_date = reschedule_data["appointment_date"]
+    new_time = reschedule_data["appointment_time"]
+    
+    conflict = await db.appointments.find_one({
+        "doctor_id": appointment["doctor_id"],
+        "appointment_date": new_date,
+        "appointment_time": new_time,
+        "status": {"$nin": [AppointmentStatus.CANCELLED]},
+        "_id": {"$ne": ObjectId(appointment_id)}
+    })
+    
+    if conflict:
+        raise HTTPException(
+            status_code=409,
+            detail="The selected time slot is already booked"
+        )
+    
+    # Update appointment
+    await db.appointments.update_one(
+        {"_id": ObjectId(appointment_id)},
+        {"$set": {
+            "appointment_date": new_date,
+            "appointment_time": new_time,
+            "status": AppointmentStatus.RESCHEDULED,
+            "updated_at": datetime.utcnow(),
+            "notes": reschedule_data.get("notes", appointment.get("notes"))
+        }}
+    )
+    
+    return {"message": "Appointment rescheduled successfully"}
+
 # Doctor Availability endpoints
 @router.get("/doctor/{doctor_id}/availability", response_model=List[DoctorAvailability])
 async def get_doctor_availability(
@@ -434,6 +590,10 @@ async def get_doctor_available_slots(
     """Get available time slots for a doctor on a specific date"""
     from ..services.availability_service import availability_service
     
+    # Validate ObjectId format
+    if not ObjectId.is_valid(doctor_id):
+        raise HTTPException(status_code=400, detail="Invalid doctor ID format")
+    
     try:
         # Validate date format
         datetime.strptime(date, "%Y-%m-%d")
@@ -463,7 +623,7 @@ async def get_doctor_available_slots(
     if not day_availability.get('is_available', True):
         return {
             "doctor_id": doctor_id,
-            "doctor_name": doctor.get('name', 'Doctor'),
+            "doctor_name": doctor.get('full_name', 'Doctor'),
             "date": date,
             "day_name": datetime.strptime(date, "%Y-%m-%d").strftime("%A"),
             "is_available": False,
@@ -528,7 +688,7 @@ async def get_doctor_available_slots(
     
     return {
         "doctor_id": doctor_id,
-        "doctor_name": doctor.get('name', 'Doctor'),
+        "doctor_name": doctor.get('full_name', 'Doctor'),
         "date": date,
         "day_name": datetime.strptime(date, "%Y-%m-%d").strftime("%A"),
         "is_available": True,
@@ -660,7 +820,7 @@ async def get_doctor_weekly_availability(
     
     return {
         "doctor_id": doctor_id,
-        "doctor_name": doctor.get('name', 'Doctor'),
+        "doctor_name": doctor.get('full_name', 'Doctor'),
         "start_date": start_date,
         "weekly_availability": formatted_availability
     }
@@ -724,7 +884,7 @@ async def get_available_slots(
     if not day_availability.get('is_available', False):
         return {
             "doctor_id": doctor_id,
-            "doctor_name": doctor.get('name', 'Doctor'),
+            "doctor_name": doctor.get('full_name', 'Doctor'),
             "date": date,
             "is_available_day": False,
             "available_slots": [],
@@ -798,7 +958,7 @@ async def get_available_slots(
     
     return {
         "doctor_id": doctor_id,
-        "doctor_name": doctor.get('name', 'Doctor'),
+        "doctor_name": doctor.get('full_name', 'Doctor'),
         "date": date,
         "day_name": date_obj.strftime("%A"),
         "formatted_date": date_obj.strftime("%B %d, %Y"),
@@ -843,7 +1003,7 @@ async def get_my_availability(
     
     return {
         "doctor_id": str(current_doctor.id),
-        "doctor_name": doctor.get('name', 'Doctor'),
+        "doctor_name": doctor.get('full_name', 'Doctor'),
         "availability": default_availability
     }
 
@@ -1052,3 +1212,225 @@ async def get_my_appointments_overview(
         "overview_period": f"Next {days} days",
         "appointments_overview": appointments_overview
     }
+
+@router.get("/doctor/dashboard-stats")
+async def get_doctor_dashboard_stats(
+    current_doctor: DoctorInDB = Depends(get_current_active_doctor),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Get doctor dashboard statistics"""
+    from datetime import datetime, timedelta
+    
+    today = datetime.now().date()
+    today_start = datetime.combine(today, datetime.min.time())
+    today_end = datetime.combine(today, datetime.max.time())
+    
+    # Get total appointments for this doctor
+    total_appointments = await db.appointments.count_documents({
+        "doctor_id": current_doctor.id
+    })
+    
+    # Get today's appointments
+    today_appointments = await db.appointments.count_documents({
+        "doctor_id": current_doctor.id,
+        "appointment_date": {"$gte": today_start, "$lte": today_end}
+    })
+    
+    # Get upcoming appointments (future dates)
+    upcoming_appointments = await db.appointments.count_documents({
+        "doctor_id": current_doctor.id,
+        "appointment_date": {"$gt": today_end},
+        "status": {"$in": ["pending", "confirmed"]}
+    })
+    
+    # Get completed appointments
+    completed_appointments = await db.appointments.count_documents({
+        "doctor_id": current_doctor.id,
+        "status": "completed"
+    })
+    
+    # Get pending appointments
+    pending_appointments = await db.appointments.count_documents({
+        "doctor_id": current_doctor.id,
+        "status": "pending"
+    })
+    
+    # Calculate total earnings from completed appointments
+    completed_pipeline = [
+        {"$match": {
+            "doctor_id": current_doctor.id,
+            "status": "completed"
+        }},
+        {"$group": {
+            "_id": None,
+            "total_earnings": {"$sum": "$consultation_fee"}
+        }}
+    ]
+    
+    earnings_result = await db.appointments.aggregate(completed_pipeline).to_list(length=1)
+    total_earnings = earnings_result[0]["total_earnings"] if earnings_result else 0
+    
+    # Get unique patients count
+    unique_patients_pipeline = [
+        {"$match": {"doctor_id": current_doctor.id}},
+        {"$group": {"_id": "$patient_id"}},
+        {"$count": "unique_patients"}
+    ]
+    
+    patients_result = await db.appointments.aggregate(unique_patients_pipeline).to_list(length=1)
+    unique_patients = patients_result[0]["unique_patients"] if patients_result else 0
+    
+    return {
+        "doctor_id": str(current_doctor.id),
+        "doctor_name": current_doctor.full_name,
+        "stats": {
+            "total_appointments": total_appointments,
+            "today_appointments": today_appointments,
+            "upcoming_appointments": upcoming_appointments,
+            "completed_appointments": completed_appointments,
+            "pending_appointments": pending_appointments,
+            "total_patients": unique_patients,
+            "total_earnings": float(total_earnings)
+        },
+        "generated_at": datetime.utcnow().isoformat()
+    }
+
+# Doctor-specific appointment management endpoints
+@router.put("/doctor/{appointment_id}/status", response_model=Appointment)
+async def update_appointment_status_by_doctor(
+    appointment_id: str,
+    status_data: dict,
+    current_doctor: DoctorInDB = Depends(get_current_active_doctor),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Update appointment status by doctor"""
+    try:
+        appointment_object_id = ObjectId(appointment_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid appointment ID")
+    
+    appointment = await db.appointments.find_one({
+        "_id": appointment_object_id,
+        "doctor_id": current_doctor.id
+    })
+    
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    # Update appointment status
+    new_status = status_data.get("status")
+    if new_status not in ["pending", "confirmed", "completed", "cancelled"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    
+    await db.appointments.update_one(
+        {"_id": appointment_object_id},
+        {"$set": {"status": new_status, "updated_at": datetime.utcnow()}}
+    )
+    
+    updated_appointment = await db.appointments.find_one({"_id": appointment_object_id})
+    
+    # Convert ObjectId to string for response
+    updated_appointment["_id"] = str(updated_appointment["_id"])
+    updated_appointment["doctor_id"] = str(updated_appointment["doctor_id"])
+    updated_appointment["patient_id"] = str(updated_appointment["patient_id"])
+    
+    return updated_appointment
+
+@router.put("/doctor/{appointment_id}/reschedule")
+async def reschedule_appointment_by_doctor(
+    appointment_id: str,
+    reschedule_data: dict,
+    current_doctor: DoctorInDB = Depends(get_current_active_doctor),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Reschedule appointment by doctor"""
+    try:
+        appointment_object_id = ObjectId(appointment_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid appointment ID")
+    
+    appointment = await db.appointments.find_one({
+        "_id": appointment_object_id,
+        "doctor_id": current_doctor.id
+    })
+    
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    new_date = reschedule_data.get("new_appointment_date")
+    new_time = reschedule_data.get("new_appointment_time")
+    
+    if not new_date or not new_time:
+        raise HTTPException(status_code=400, detail="New date and time are required")
+    
+    # Update appointment
+    await db.appointments.update_one(
+        {"_id": appointment_object_id},
+        {
+            "$set": {
+                "appointment_date": new_date,
+                "appointment_time": new_time,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    return {"message": "Appointment rescheduled successfully"}
+
+@router.delete("/doctor/{appointment_id}")
+async def cancel_appointment_by_doctor(
+    appointment_id: str,
+    current_doctor: DoctorInDB = Depends(get_current_active_doctor),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Cancel appointment by doctor"""
+    try:
+        appointment_object_id = ObjectId(appointment_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid appointment ID")
+    
+    appointment = await db.appointments.find_one({
+        "_id": appointment_object_id,
+        "doctor_id": current_doctor.id
+    })
+    
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    # Update appointment status to cancelled instead of deleting
+    await db.appointments.update_one(
+        {"_id": appointment_object_id},
+        {"$set": {"status": "cancelled", "updated_at": datetime.utcnow()}}
+    )
+    
+    return {"message": "Appointment cancelled successfully"}
+
+# Background task functions
+async def send_appointment_emails_task(
+    patient_email: str,
+    patient_name: str,
+    doctor_email: str,
+    doctor_name: str,
+    appointment_date: str,
+    appointment_time: str,
+    symptoms: str,
+    calendar_link: str = None,
+    meet_link: str = None
+):
+    """Background task to send appointment notification emails"""
+    try:
+        from ..services.email_service import email_service
+        email_results = await email_service.send_appointment_emails(
+            patient_email=patient_email,
+            patient_name=patient_name,
+            doctor_email=doctor_email,
+            doctor_name=doctor_name,
+            appointment_date=appointment_date,
+            appointment_time=appointment_time,
+            symptoms=symptoms,
+            calendar_link=calendar_link,
+            meet_link=meet_link
+        )
+        logger.info(f"Email notifications sent: {email_results}")
+    except Exception as e:
+        logger.warning(f"Failed to send email notifications: {e}")

@@ -47,18 +47,20 @@ const DrLogin = () => {
     setIsPending(true);
     try {
       const response = await doctorAuthService.login({
-        professionalId: form.professionalId,
+        email: form.professionalId, // Map professionalId to email for the API
         password: form.password,
       });
       
       // Handle the new FastAPI response format
       if (response.success && response.data) {
         const { doctor, token } = response.data;
-        localStorage.setItem(
-          "doctorName",
-          doctor.name || doctor.email || form.professionalId
-        );
-        navigate("/doctors");
+        
+        // Store doctor authentication data properly
+        localStorage.setItem("doctorToken", token.access_token);
+        localStorage.setItem("doctorData", JSON.stringify(doctor));
+        localStorage.setItem("doctorName", doctor.full_name || doctor.name || doctor.email || form.professionalId);
+        
+        navigate("/doctors/pages/dashboard");
       } else {
         throw new Error(response.error || "Login failed. Please try again.");
       }

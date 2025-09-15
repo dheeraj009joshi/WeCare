@@ -1,10 +1,10 @@
 import { authService } from './authService';
-import { appointmentsAPI, chatAPI } from '../config/api';
+import { appointmentsAPI, chatAPI, APPOINTMENTS_API } from '../config/api';
 import api from '../config/api';
 import axios from 'axios';
 
 // Updated for FastAPI backend
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
 const DOCTOR_AUTH_BASE = `${API_BASE}/auth/doctor`;
 const DOCTOR_API_BASE = API_BASE;
 
@@ -16,6 +16,12 @@ export const doctorAuthService = {
       const response = await authService.doctorRegister(doctorData);
       if (response.success && response.data) {
         const { doctor, token } = response.data;
+        // Clear any existing user tokens
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userType');
+        // Set doctor tokens
         localStorage.setItem('doctorToken', token.access_token);
         localStorage.setItem('doctorData', JSON.stringify(doctor));
       }
@@ -31,6 +37,12 @@ export const doctorAuthService = {
       const response = await authService.doctorLogin(credentials);
       if (response.success && response.data) {
         const { doctor, token } = response.data;
+        // Clear any existing user tokens
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userType');
+        // Set doctor tokens
         localStorage.setItem('doctorToken', token.access_token);
         localStorage.setItem('doctorData', JSON.stringify(doctor));
       }
@@ -113,10 +125,33 @@ export const doctorDashboardService = {
   // Get dashboard stats
   getStats: async () => {
     try {
-      const response = await api.get(`${DOCTOR_API_BASE}/doctors/stats`);
-      return response.data;
+      const response = await api.get(`${APPOINTMENTS_API}/doctor/dashboard-stats`);
+      console.log('Dashboard stats response:', response.data);
+      
+      const stats = response.data.stats;
+      return {
+        totalAppointments: stats.total_appointments || 0,
+        todayAppointments: stats.today_appointments || 0,
+        upcomingAppointments: stats.upcoming_appointments || 0,
+        completedAppointments: stats.completed_appointments || 0,
+        pendingAppointments: stats.pending_appointments || 0,
+        totalPatients: stats.total_patients || 0,
+        totalEarnings: stats.total_earnings || 0,
+        doctorName: response.data.doctor_name || 'Doctor'
+      };
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to get dashboard stats' };
+      console.error('Error getting dashboard stats:', error);
+      // Return default values instead of throwing error to prevent UI crashes
+      return {
+        totalAppointments: 0,
+        todayAppointments: 0,
+        upcomingAppointments: 0,
+        completedAppointments: 0,
+        pendingAppointments: 0,
+        totalPatients: 0,
+        totalEarnings: 0,
+        doctorName: 'Doctor'
+      };
     }
   },
 

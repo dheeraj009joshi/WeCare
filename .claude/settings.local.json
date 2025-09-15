@@ -10,7 +10,12 @@
       "Bash(xargs kill:*)",
       "Bash(curl:*)",
       "Bash(npm run:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(pkill:*)",
+      "Bash(brew services start:*)",
+      "Bash(mongod:*)",
+      "Bash(npm install:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

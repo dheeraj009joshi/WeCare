@@ -4,17 +4,17 @@ import axios from 'axios';
 const config = {
   // Development
   development: {
-    API_BASE_URL: 'http://localhost:4000/api',
-    AUTH_API: 'http://localhost:4000/api/auth',
-    MEDICINE_STORE_API: 'http://localhost:4000/api/medicine-store',
-    APPOINTMENTS_API: 'http://localhost:4000/api/appointments',
-    DOCTORS_API: 'http://localhost:4000/api/doctors',
-    FOOD_DELIVERY_API: 'http://localhost:4000/api/food-delivery',
-    CHAT_API: 'http://localhost:4000/api/chat',
-    EMERGENCY_API: 'http://localhost:4000/api/emergency',
-    SERVICES_API: 'http://localhost:4000/api/services',
-    CONTACT_API: 'http://localhost:4000/api/contact',
-    ADMIN_API: 'http://localhost:4000/api/admin'
+    API_BASE_URL: 'http://localhost:8000/api',
+    AUTH_API: 'http://localhost:8000/api/auth',
+    MEDICINE_STORE_API: 'http://localhost:8000/api/medicine-store',
+    APPOINTMENTS_API: 'http://localhost:8000/api/appointments',
+    DOCTORS_API: 'http://localhost:8000/api/doctors',
+    FOOD_DELIVERY_API: 'http://localhost:8000/api/food-delivery',
+    CHAT_API: 'http://localhost:8000/api/chat',
+    EMERGENCY_API: 'http://localhost:8000/api/emergency',
+    SERVICES_API: 'http://localhost:8000/api/services',
+    CONTACT_API: 'http://localhost:8000/api/contact',
+    ADMIN_API: 'http://localhost:8000/api/admin'
   },
   
   // Production
@@ -81,9 +81,13 @@ api.interceptors.request.use(
   (config) => {
     console.log('API Request:', config.method?.toUpperCase(), config.url);
     
-    // Add JWT token if available
+    // Add JWT token if available - check both user and doctor tokens
     const token = localStorage.getItem('token');
-    if (token) {
+    const doctorToken = localStorage.getItem('doctorToken');
+    
+    if (doctorToken) {
+      config.headers.Authorization = `Bearer ${doctorToken}`;
+    } else if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     
@@ -95,7 +99,7 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor for logging
+// Add response interceptor for logging and session management
 api.interceptors.response.use(
   (response) => {
     console.log('API Response:', response.status, response.config.url);
@@ -103,6 +107,40 @@ api.interceptors.response.use(
   },
   (error) => {
     console.error('API Response Error:', error.response?.status, error.response?.data);
+    
+    // Handle 401 Unauthorized responses - session expired
+    if (error.response?.status === 401) {
+      console.warn('Session expired - clearing tokens and redirecting to login');
+      
+      // Clear all authentication tokens and user data
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('userType');
+      localStorage.removeItem('doctorToken');
+      localStorage.removeItem('doctorData');
+      
+      // Check current path and redirect appropriately
+      const currentPath = window.location.pathname;
+      
+      // If on doctor portal, redirect to doctor login
+      if (currentPath.includes('/doctors') || currentPath.includes('/doctor')) {
+        window.location.href = '/doctors/login';
+      } else {
+        // Otherwise redirect to user login
+        window.location.href = '/login';
+      }
+      
+      // Don't reject the promise to prevent additional error handling
+      return Promise.resolve({
+        data: null,
+        status: 401,
+        statusText: 'Session Expired',
+        config: error.config,
+        headers: {}
+      });
+    }
+    
     return Promise.reject(error);
   }
 );
@@ -124,13 +162,24 @@ export const authAPI = {
   }),
 };
 
+// Doctors API helpers
+export const doctorsAPI = {
+  getAllDoctors: (params) => api.get(`${DOCTORS_API}/`, { params }),
+  getDoctor: (id) => api.get(`${DOCTORS_API}/${id}`),
+  getDoctorProfile: () => api.get(`${DOCTORS_API}/profile`),
+  updateDoctorProfile: (updateData) => api.put(`${DOCTORS_API}/profile`, updateData),
+  setDoctorAvailability: (availabilityData) => api.put(`${DOCTORS_API}/my-availability`, availabilityData),
+};
+
 // Appointments API helpers
 export const appointmentsAPI = {
   getUserAppointments: (params) => api.get(`${APPOINTMENTS_API}/`, { params }),
   getDoctorAppointments: (params) => api.get(`${APPOINTMENTS_API}/doctor`, { params }),
+  getAppointment: (id) => api.get(`${APPOINTMENTS_API}/${id}`),
   bookAppointment: (appointmentData) => api.post(`${APPOINTMENTS_API}/`, appointmentData),
   updateAppointment: (id, updateData) => api.put(`${APPOINTMENTS_API}/${id}`, updateData),
   cancelAppointment: (id) => api.delete(`${APPOINTMENTS_API}/${id}`),
+  rescheduleAppointment: (id, rescheduleData) => api.put(`${APPOINTMENTS_API}/${id}/reschedule`, rescheduleData),
   getDoctorAvailability: (doctorId) => api.get(`${APPOINTMENTS_API}/doctor/${doctorId}/availability`),
   // New availability endpoints
   getDoctorAvailableSlots: (doctorId, date) => api.get(`${APPOINTMENTS_API}/doctor/${doctorId}/available-slots?date=${date}`),
@@ -138,6 +187,10 @@ export const appointmentsAPI = {
     const params = startDate ? `?start_date=${startDate}` : '';
     return api.get(`${APPOINTMENTS_API}/doctor/${doctorId}/availability-week${params}`);
   },
+  // Doctor-specific appointment management
+  updateAppointmentStatusByDoctor: (appointmentId, statusData) => api.put(`${APPOINTMENTS_API}/doctor/${appointmentId}/status`, statusData),
+  rescheduleAppointmentByDoctor: (appointmentId, rescheduleData) => api.put(`${APPOINTMENTS_API}/doctor/${appointmentId}/reschedule`, rescheduleData),
+  cancelAppointmentByDoctor: (appointmentId) => api.delete(`${APPOINTMENTS_API}/doctor/${appointmentId}`),
 };
 
 // Medicine Store API helpers

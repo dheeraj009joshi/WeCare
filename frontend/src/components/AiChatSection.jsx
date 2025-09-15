@@ -29,7 +29,7 @@ const AiChatSection = () => {
     {
       name: "Consult Doctors",
       icon: "🩺",
-      route: "/services",
+      route: "/appointments",
     },
     {
       name: "Meditation",

@@ -9,7 +9,7 @@ const SignupPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [formData, setFormData] = useState({
-    name: "",
+    full_name: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -55,8 +55,8 @@ const SignupPage = () => {
     try {
       // Field validation
       const errors = {};
-      if (!formData.name || formData.name.trim().length < 2) {
-        errors.name = 'Name must be at least 2 characters';
+      if (!formData.full_name || formData.full_name.trim().length < 2) {
+        errors.full_name = 'Name must be at least 2 characters';
       }
       if (!formData.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(formData.email)) {
         errors.email = 'Enter a valid email address';
@@ -78,7 +78,7 @@ const SignupPage = () => {
 
       // Real backend integration
       const res = await registerUser({
-        name: formData.name,
+        full_name: formData.full_name,
         email: formData.email,
         password: formData.password,
         phone: formData.phone,

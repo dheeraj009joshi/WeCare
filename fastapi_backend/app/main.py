@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import logging
 from .core.config import settings
 from .core.database import connect_to_mongo, close_mongo_connection
-from .routes import auth, medicine, food_delivery, appointments, chat, emergency, admin, services, contact
+from .routes import auth, medicine, food_delivery, appointments, chat, emergency, admin, services, contact, doctors
 from .middleware.logging import LoggingMiddleware
 from .middleware.rate_limiting import RateLimitMiddleware
 
@@ -47,6 +47,7 @@ app.add_middleware(RateLimitMiddleware, calls=100, period=60)  # 100 requests pe
 
 # Include routers with proper prefixes and tags
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(doctors.router, prefix="/api/doctors", tags=["Doctors"])
 app.include_router(medicine.router, prefix="/api/medicine-store", tags=["Medicine Store"])
 app.include_router(food_delivery.router, prefix="/api/food-delivery", tags=["Food Delivery"])
 app.include_router(appointments.router, prefix="/api/appointments", tags=["Appointments"])

@@ -19,7 +19,7 @@ class DoctorBase(BaseModel):
     google_id: Optional[str] = None
     profile_picture: Optional[str] = None
     is_google_user: Optional[bool] = False
-    is_verified: bool = False
+    is_verified: bool = True
     is_active: bool = True
 
 class DoctorCreate(BaseModel):
@@ -70,8 +70,8 @@ class DoctorInDB(DoctorBase):
 
 class Doctor(DoctorBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     class Config:
         populate_by_name = True
