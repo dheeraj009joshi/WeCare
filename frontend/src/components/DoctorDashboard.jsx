@@ -111,11 +111,18 @@ export default function DoctorDashboard() {
   useEffect(() => {
     const initializeDashboard = async () => {
       try {
-        // Check if doctor is logged in
-        if (!doctorAuthService.isLoggedIn()) {
+        // Check if doctor is logged in (check both token formats)
+        const doctorToken = localStorage.getItem('doctorToken');
+        const generalToken = localStorage.getItem('token');
+        const doctorData = localStorage.getItem('doctorData');
+        
+        if (!doctorToken && !generalToken) {
+          console.log("No tokens found, redirecting to login");
           navigate("/doctors/login");
           return;
         }
+        
+        console.log("Tokens found:", { doctorToken: !!doctorToken, generalToken: !!generalToken, doctorData: !!doctorData });
 
         // Get doctor profile
         try {
@@ -128,7 +135,22 @@ export default function DoctorDashboard() {
           if (storedDoctor) {
             setDoctor(storedDoctor);
           } else {
-            throw profileError; // Re-throw if no stored data
+            // Try to get doctor data from the general token format
+            const userData = localStorage.getItem('user');
+            if (userData) {
+              try {
+                const user = JSON.parse(userData);
+                if (user.role === 'doctor') {
+                  setDoctor(user);
+                } else {
+                  throw profileError; // Re-throw if not a doctor
+                }
+              } catch (parseError) {
+                throw profileError; // Re-throw if parsing fails
+              }
+            } else {
+              throw profileError; // Re-throw if no stored data
+            }
           }
         }
 
@@ -225,6 +247,13 @@ export default function DoctorDashboard() {
   const handleLogout = () => {
     doctorAuthService.logout(); // session clear
     localStorage.removeItem("doctorName"); // doctor name clear
+    
+    // Also clear AuthContext format
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("loginTime");
+    
     navigate("/doctors"); // doctors page render
   };
 

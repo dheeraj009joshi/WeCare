@@ -111,9 +111,25 @@ const DoctorRegistration = () => {
 
       const response = await doctorAuthService.register(payload);
       setSuccessMsg("Registration successful! Redirecting...");
-      if (response?.token) {
+      
+      // Store doctor data in both formats for compatibility
+      if (response?.token && response?.doctor) {
         localStorage.setItem("doctorToken", response.token);
+        localStorage.setItem("doctorData", JSON.stringify(response.doctor));
+        
+        // Also store in AuthContext format for compatibility
+        localStorage.setItem("token", response.token);
+        localStorage.setItem("user", JSON.stringify({
+          id: response.doctor.id,
+          name: response.doctor.name,
+          email: response.doctor.email,
+          role: "doctor",
+          ...response.doctor
+        }));
+        localStorage.setItem("userId", response.doctor.id);
+        localStorage.setItem("loginTime", Date.now().toString());
       }
+      
       setTimeout(() => navigate("/doctors/pages/dashboard"), 2000);
     } catch (error) {
       console.log('Full error object:', error);

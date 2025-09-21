@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 // Get all doctors with optional specialization filter
 export const getDoctors = async (specialization = '') => {

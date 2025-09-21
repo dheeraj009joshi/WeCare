@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const API_BASE = "http://localhost:5000/api/auth/doctor";
-const DOCTOR_API_BASE = "http://localhost:5000/api/doctor";
+const API_BASE = "http://localhost:8000/api/auth/doctor";
+const DOCTOR_API_BASE = "http://localhost:8000/api/doctor";
 
 // Authentication
 export const loginDoctor = (formData) =>

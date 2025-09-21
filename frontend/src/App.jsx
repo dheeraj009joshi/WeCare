@@ -58,16 +58,17 @@ import EmailDemoPage from "./components/EmailDemoPage";
 
 function App() {
   // Auto login for development (only if not already logged in)
-  React.useEffect(() => {
-    if (!isLoggedIn()) {
-      autoLogin().then((success) => {
-        if (success) {
-          console.log("Auto login completed");
-          window.location.reload(); // Refresh to apply the token
-        }
-      });
-    }
-  }, []);
+  // Disabled for now to prevent CORS issues
+  // React.useEffect(() => {
+  //   if (!isLoggedIn()) {
+  //     autoLogin().then((success) => {
+  //       if (success) {
+  //         console.log("Auto login completed");
+  //         window.location.reload(); // Refresh to apply the token
+  //       }
+  //     });
+  //   }
+  // }, []);
   const location = useLocation();
   const isService = location.pathname.startsWith("/services");
   const isDoctorRoute = location.pathname.startsWith("/doctors");

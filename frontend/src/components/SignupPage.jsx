@@ -86,7 +86,8 @@ const SignupPage = () => {
         gender: formData.gender,
       });
       const data = res.data;
-      if (res.status === 201) {
+      console.log(data)
+      if (res.status === 200) {
         // Use AuthContext to handle login after successful registration
         const userDataForAuth = {
           ...data.user,

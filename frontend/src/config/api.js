@@ -4,8 +4,8 @@ import axios from 'axios';
 const config = {
   // Development
   development: {
-    API_BASE_URL: 'http://localhost:5000/api',
-    MEDICINE_STORE_API: 'http://localhost:5000/api/medicine-store'
+    API_BASE_URL: 'http://localhost:8000/api',
+    MEDICINE_STORE_API: 'http://localhost:8000/api/medicine-store'
   },
   
   // Production

@@ -72,8 +72,29 @@ class DoctorLogin(BaseModel):
     password: str
 
 # Beanie Document
-class Doctor(Document, DoctorBase):
+class Doctor(Document):
+    name: str
+    email: EmailStr
     password: str
+    phone: str
+    specializations: List[str] = []
+    qualifications: str
+    experience: int = Field(..., ge=0)
+    bio: Optional[str] = None
+    gender: str
+    date_of_birth: str  # Store as string for now
+    address: str
+    city: str
+    state: str
+    country: str
+    pincode: str
+    profile_image: Optional[str] = None
+    license_number: str
+    hospital: Optional[str] = None
+    consultation_fee: float = Field(default=0.0, ge=0)
+    is_available: bool = True
+    rating: float = Field(default=0.0, ge=0, le=5)
+    total_ratings: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

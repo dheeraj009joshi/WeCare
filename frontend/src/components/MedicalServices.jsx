@@ -14,7 +14,7 @@ const MedicalServices = () => {
   const fetchServices = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/services');
+      const response = await fetch('http://localhost:8000/api/services');
       const data = await response.json();
       
       if (data.services) {

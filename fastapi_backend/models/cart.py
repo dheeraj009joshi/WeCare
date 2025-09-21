@@ -2,6 +2,7 @@ from beanie import Document
 from pydantic import BaseModel, Field
 from datetime import datetime
 from decimal import Decimal
+from typing import Optional
 
 # Pydantic schemas
 class CartBase(BaseModel):

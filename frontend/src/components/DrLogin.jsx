@@ -50,12 +50,25 @@ const DrLogin = () => {
         professionalId: form.professionalId,
         password: form.password,
       });
-      localStorage.setItem(
-        "doctorName",
-        data.doctorName || form.professionalId
-      );
+      
+      // Store doctor data in both formats for compatibility
+      localStorage.setItem("doctorName", data.doctor?.name || form.professionalId);
+      
+      // Also store in AuthContext format for compatibility
+      if (data.token && data.doctor) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify({
+          id: data.doctor.id,
+          name: data.doctor.name,
+          email: data.doctor.email,
+          role: "doctor",
+          ...data.doctor
+        }));
+        localStorage.setItem("userId", data.doctor.id);
+        localStorage.setItem("loginTime", Date.now().toString());
+      }
 
-      navigate("/doctors");
+      navigate("/doctors/pages/dashboard");
     } catch (err) {
       setError(err.message || "Login failed. Please try again.");
     } finally {

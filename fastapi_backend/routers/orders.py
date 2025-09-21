@@ -2,8 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from beanie import PydanticObjectId
 
-from models.order import Order, OrderResponse, OrderCreate, OrderUpdate
-from models.order_item import OrderItem, OrderItemResponse, OrderItemCreate
+from models.order import Order, OrderResponse, OrderCreate, OrderUpdate, OrderItem, OrderItemResponse, OrderItemCreate
 from routers.auth import get_current_user
 
 router = APIRouter()

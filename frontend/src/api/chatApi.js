@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE = "http://localhost:5000/api/chat";
+const API_BASE = "http://localhost:8000/api/chat";
 
 // Add timeout and better error handling
 const apiClient = axios.create({

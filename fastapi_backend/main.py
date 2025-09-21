@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 
 from database import init_db
-from routers import auth, users, doctors, appointments, products, orders, services, food_delivery
+from routers import auth, doctor_auth, users, doctors, appointments, products, orders, services, food_delivery
 
 # Load environment variables
 load_dotenv()
@@ -36,6 +36,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(doctor_auth.router, prefix="/api/doctor", tags=["Doctor Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(doctors.router, prefix="/api/doctors", tags=["Doctors"])
 app.include_router(appointments.router, prefix="/api/appointments", tags=["Appointments"])

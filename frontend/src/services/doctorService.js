@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
 const DOCTOR_AUTH_BASE = `${API_BASE}/auth/doctor`;
 const DOCTOR_API_BASE = `${API_BASE}/doctor`;
 

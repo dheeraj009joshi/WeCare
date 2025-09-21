@@ -85,7 +85,7 @@ const CreateService = () => {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/services', {
+      const response = await fetch('http://localhost:8000/api/services', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
