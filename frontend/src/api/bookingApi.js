@@ -1,91 +1,101 @@
-// Updated for FastAPI backend
-import { appointmentsAPI } from '../config/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
-// Create a new appointment/booking
+// Create a new booking
 export const createBooking = async (bookingData) => {
   try {
-    // Get user ID from localStorage and add it to patient_id if not provided
+    // Get user ID from localStorage if available
     const userId = localStorage.getItem('userId');
-    if (userId && !bookingData.patient_id) {
-      bookingData.patient_id = userId;
+    if (userId) {
+      bookingData.userId = userId;
     }
 
-    // Map old booking data format to new FastAPI format
-    const appointmentData = {
-      patient_id: bookingData.userId || bookingData.patient_id,
-      doctor_id: bookingData.doctorId || bookingData.doctor_id,
-      appointment_date: bookingData.date || bookingData.appointment_date,
-      appointment_time: bookingData.time || bookingData.appointment_time,
-      symptoms: bookingData.symptoms || bookingData.notes || '',
-      consultation_fee: bookingData.consultation_fee || 500.0, // Default fee
-      ...bookingData
-    };
+    const response = await fetch(`${API_BASE_URL}/booking/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(bookingData),
+    });
 
-    const response = await appointmentsAPI.bookAppointment(appointmentData);
-    return response.data;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error creating booking:', error);
-    throw error.response?.data || error;
+    throw error;
   }
 };
 
 // Get available time slots for a doctor
 export const getAvailableSlots = async (doctorId, date) => {
   try {
-    const response = await appointmentsAPI.getDoctorAvailableSlots(doctorId, date);
-    return {
-      slots: response.data.available_slots || [],
-      doctor_name: response.data.doctor_name,
-      total_slots: response.data.total_slots
-    };
+    const response = await fetch(
+      `${API_BASE_URL}/booking/available-slots?doctorId=${doctorId}&date=${encodeURIComponent(date)}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error getting available slots:', error);
-    // Return empty slots if API fails
-    return { 
-      slots: [],
-      doctor_name: 'Doctor',
-      total_slots: 0
-    };
+    throw error;
   }
 };
 
-// Get weekly availability for a doctor
-export const getDoctorWeeklyAvailability = async (doctorId, startDate = null) => {
-  try {
-    const response = await appointmentsAPI.getDoctorWeeklyAvailability(doctorId, startDate);
-    return response.data;
-  } catch (error) {
-    console.error('Error getting weekly availability:', error);
-    return {
-      weekly_availability: {},
-      doctor_name: 'Doctor'
-    };
-  }
-};
-
-// Get appointment by ID (may need implementation in FastAPI)
+// Get appointment by ID
 export const getAppointmentById = async (appointmentId) => {
   try {
-    // This specific endpoint may need to be implemented in FastAPI
-    console.warn('getAppointmentById may need implementation in FastAPI backend');
-    const response = await appointmentsAPI.getUserAppointments();
-    const appointment = response.data.find(apt => apt.id === appointmentId);
-    return appointment || null;
+    const response = await fetch(`${API_BASE_URL}/booking/appointment/${appointmentId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error getting appointment:', error);
-    throw error.response?.data || error;
+    throw error;
   }
 };
 
 // Get user profile for booking form
 export const getUserProfileForBooking = async (userId) => {
   try {
-    // Get user from localStorage as profile endpoints may need implementation
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      return JSON.parse(userStr);
+    const response = await fetch(`${API_BASE_URL}/booking/user-profile/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
-    throw new Error('User profile not found');
+
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error getting user profile for booking:', error);
     throw error;
@@ -95,32 +105,70 @@ export const getUserProfileForBooking = async (userId) => {
 // Get appointments for a user
 export const getUserAppointments = async (userId) => {
   try {
-    const response = await appointmentsAPI.getUserAppointments();
-    return response.data;
+    const response = await fetch(`${API_BASE_URL}/booking/user/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error getting user appointments:', error);
-    throw error.response?.data || error;
+    throw error;
   }
 };
 
 // Cancel appointment
 export const cancelAppointment = async (appointmentId, reason = '') => {
   try {
-    const response = await appointmentsAPI.cancelAppointment(appointmentId);
-    return response.data;
+    const response = await fetch(`${API_BASE_URL}/booking/cancel/${appointmentId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error cancelling appointment:', error);
-    throw error.response?.data || error;
+    throw error;
   }
 };
 
 // Update appointment status (for doctors)
 export const updateAppointmentStatus = async (appointmentId, statusData) => {
   try {
-    const response = await appointmentsAPI.updateAppointment(appointmentId, statusData);
-    return response.data;
+    const response = await fetch(`${API_BASE_URL}/booking/status/${appointmentId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(statusData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error updating appointment status:', error);
-    throw error.response?.data || error;
+    throw error;
   }
 }; 

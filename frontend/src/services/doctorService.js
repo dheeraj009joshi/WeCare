@@ -1,31 +1,52 @@
-import { authService } from './authService';
-import { appointmentsAPI, chatAPI, APPOINTMENTS_API } from '../config/api';
-import api from '../config/api';
 import axios from 'axios';
 
-// Updated for FastAPI backend
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
 const DOCTOR_AUTH_BASE = `${API_BASE}/auth/doctor`;
-const DOCTOR_API_BASE = API_BASE;
+const DOCTOR_API_BASE = `${API_BASE}/doctor`;
+
+// Create axios instance with default config
+const apiClient = axios.create({
+  baseURL: API_BASE,
+  timeout: 10000,
+});
+
+// Add request interceptor to include auth token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('doctorToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle errors
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('doctorToken');
+      window.location.href = '/doctors/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Authentication Services
 export const doctorAuthService = {
   // Register doctor
   register: async (doctorData) => {
     try {
-      const response = await authService.doctorRegister(doctorData);
-      if (response.success && response.data) {
-        const { doctor, token } = response.data;
-        // Clear any existing user tokens
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('userType');
-        // Set doctor tokens
-        localStorage.setItem('doctorToken', token.access_token);
-        localStorage.setItem('doctorData', JSON.stringify(doctor));
+      const response = await axios.post(`${DOCTOR_AUTH_BASE}/register`, doctorData);
+      if (response.data.token) {
+        localStorage.setItem('doctorToken', response.data.token);
+        localStorage.setItem('doctorData', JSON.stringify(response.data.doctor));
       }
-      return response;
+      return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Registration failed' };
     }
@@ -34,19 +55,12 @@ export const doctorAuthService = {
   // Login doctor
   login: async (credentials) => {
     try {
-      const response = await authService.doctorLogin(credentials);
-      if (response.success && response.data) {
-        const { doctor, token } = response.data;
-        // Clear any existing user tokens
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('userType');
-        // Set doctor tokens
-        localStorage.setItem('doctorToken', token.access_token);
-        localStorage.setItem('doctorData', JSON.stringify(doctor));
+      const response = await axios.post(`${DOCTOR_AUTH_BASE}/login`, credentials);
+      if (response.data.token) {
+        localStorage.setItem('doctorToken', response.data.token);
+        localStorage.setItem('doctorData', JSON.stringify(response.data.doctor));
       }
-      return response;
+      return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Login failed' };
     }
@@ -55,7 +69,7 @@ export const doctorAuthService = {
   // Forgot password
   forgotPassword: async (email) => {
     try {
-      const response = await api.post(`${DOCTOR_AUTH_BASE}/forgot-password`, { email });
+      const response = await axios.post(`${DOCTOR_AUTH_BASE}/forgot-password`, { email });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to process forgot password request' };
@@ -65,7 +79,7 @@ export const doctorAuthService = {
   // Reset password
   resetPassword: async (token, newPassword) => {
     try {
-      const response = await api.post(`${DOCTOR_AUTH_BASE}/reset-password`, { token, newPassword });
+      const response = await axios.post(`${DOCTOR_AUTH_BASE}/reset-password`, { token, newPassword });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to reset password' };
@@ -75,7 +89,7 @@ export const doctorAuthService = {
   // Get doctor profile
   getProfile: async () => {
     try {
-      const response = await api.get(`${DOCTOR_AUTH_BASE}/profile`);
+      const response = await apiClient.get(`${DOCTOR_AUTH_BASE}/profile`);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get profile' };
@@ -85,7 +99,7 @@ export const doctorAuthService = {
   // Update doctor profile
   updateProfile: async (profileData) => {
     try {
-      const response = await api.put(`${DOCTOR_AUTH_BASE}/profile`, profileData);
+      const response = await apiClient.put(`${DOCTOR_AUTH_BASE}/profile`, profileData);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to update profile' };
@@ -112,7 +126,7 @@ export const doctorAuthService = {
   // Test backend connection
   testConnection: async () => {
     try {
-      const response = await api.get('/api/health');
+      const response = await apiClient.get('/api/health');
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Backend connection failed' };
@@ -125,40 +139,17 @@ export const doctorDashboardService = {
   // Get dashboard stats
   getStats: async () => {
     try {
-      const response = await api.get(`${APPOINTMENTS_API}/doctor/dashboard-stats`);
-      console.log('Dashboard stats response:', response.data);
-      
-      const stats = response.data.stats;
-      return {
-        totalAppointments: stats.total_appointments || 0,
-        todayAppointments: stats.today_appointments || 0,
-        upcomingAppointments: stats.upcoming_appointments || 0,
-        completedAppointments: stats.completed_appointments || 0,
-        pendingAppointments: stats.pending_appointments || 0,
-        totalPatients: stats.total_patients || 0,
-        totalEarnings: stats.total_earnings || 0,
-        doctorName: response.data.doctor_name || 'Doctor'
-      };
+      const response = await apiClient.get(`${DOCTOR_API_BASE}/stats`);
+      return response.data;
     } catch (error) {
-      console.error('Error getting dashboard stats:', error);
-      // Return default values instead of throwing error to prevent UI crashes
-      return {
-        totalAppointments: 0,
-        todayAppointments: 0,
-        upcomingAppointments: 0,
-        completedAppointments: 0,
-        pendingAppointments: 0,
-        totalPatients: 0,
-        totalEarnings: 0,
-        doctorName: 'Doctor'
-      };
+      throw error.response?.data || { message: 'Failed to get dashboard stats' };
     }
   },
 
   // Get appointments
   getAppointments: async (params = {}) => {
     try {
-      const response = await api.get(`${DOCTOR_API_BASE}/appointments/doctor`, { params });
+      const response = await apiClient.get(`${DOCTOR_API_BASE}/appointments`, { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get appointments' };
@@ -168,7 +159,7 @@ export const doctorDashboardService = {
   // Update appointment status
   updateAppointmentStatus: async (appointmentId, statusData) => {
     try {
-      const response = await api.put(`${DOCTOR_API_BASE}/appointments/${appointmentId}`, statusData);
+      const response = await apiClient.put(`${DOCTOR_API_BASE}/appointments/${appointmentId}`, statusData);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to update appointment' };
@@ -178,7 +169,7 @@ export const doctorDashboardService = {
   // Get patients
   getPatients: async (params = {}) => {
     try {
-      const response = await api.get(`${DOCTOR_API_BASE}/doctors/patients`, { params });
+      const response = await apiClient.get(`${DOCTOR_API_BASE}/patients`, { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get patients' };
@@ -188,7 +179,7 @@ export const doctorDashboardService = {
   // Get messages
   getMessages: async (params = {}) => {
     try {
-      const response = await api.get(`${DOCTOR_API_BASE}/chat/doctor/messages`, { params });
+      const response = await apiClient.get(`${DOCTOR_API_BASE}/messages`, { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get messages' };
@@ -198,7 +189,7 @@ export const doctorDashboardService = {
   // Send message
   sendMessage: async (messageData) => {
     try {
-      const response = await api.post(`${DOCTOR_API_BASE}/chat/send`, messageData);
+      const response = await apiClient.post(`${DOCTOR_API_BASE}/messages`, messageData);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to send message' };
@@ -208,7 +199,7 @@ export const doctorDashboardService = {
   // Mark messages as read
   markMessagesAsRead: async (patientId) => {
     try {
-      const response = await api.put(`${DOCTOR_API_BASE}/chat/mark-read/${patientId}`);
+      const response = await apiClient.put(`${DOCTOR_API_BASE}/messages/read/${patientId}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to mark messages as read' };
@@ -218,7 +209,7 @@ export const doctorDashboardService = {
   // Get availability
   getAvailability: async () => {
     try {
-      const response = await api.get(`${DOCTOR_API_BASE}/doctors/availability`);
+      const response = await apiClient.get(`${DOCTOR_API_BASE}/availability`);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get availability' };
@@ -228,7 +219,7 @@ export const doctorDashboardService = {
   // Update availability
   updateAvailability: async (availabilityData) => {
     try {
-      const response = await api.put(`${DOCTOR_API_BASE}/doctors/availability`, availabilityData);
+      const response = await apiClient.put(`${DOCTOR_API_BASE}/availability`, availabilityData);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to update availability' };
@@ -238,7 +229,7 @@ export const doctorDashboardService = {
   // Get earnings
   getEarnings: async (params = {}) => {
     try {
-      const response = await api.get(`${DOCTOR_API_BASE}/doctors/earnings`, { params });
+      const response = await apiClient.get(`${DOCTOR_API_BASE}/earnings`, { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get earnings' };

@@ -3,18 +3,22 @@ import "./App.css";
 import Navbar from "./components/Navbar";
 import AiChatSection from "./components/AiChatSection";
 import ForgotPasswordPage from "./components/ForgotPasswordPage";
-import AppointmentFlow from "./components/AppointmentFlow";
+import BookingForm from "./components/BookingForm";
 import CallToActionChat from "./components/CallToActionChat";
 import Doctors from "./components/Doctors";
 import AmbulanceCall from "./components/AmbulanceCall";
 import Footer from "./components/Footer";
 import ChatBot from "./components/ChatBot";
+import MedicineStore from "./components/MedicineStore";
 import SimpleMedicineStore from "./components/SimpleMedicineStore";
+import AdminDashboard from "./components/AdminDashboard";
+import AdminMedicineStore from "./components/AdminMedicineStore";
+import DoctorsManagement from "./components/DoctorsManagement";
 
 import LoginPage from "./components/LoginPage";
 import SignupPage from "./components/SignupPage";
 import ProfilePage from "./components/ProfilePage";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute, { AdminRoute } from "./components/ProtectedRoute";
 import { Routes, Route } from "react-router-dom";
 
 import { useLocation } from "react-router-dom";
@@ -25,6 +29,7 @@ import DoctorDashboard from "./components/DoctorDashboard";
 import EditDoctorProfile from "./components/EditDoctorProfile";
 import DoctorEarnings from "./components/DoctorEarnings";
 import DoctorAppointment from "./components/DoctorAppointment";
+import AppointmentList from "./components/AppointmentList";
 import DoctorPages from "./components/DoctorPages";
 
 import AssistantCharacter from "./components/AssistantCharacter";
@@ -36,45 +41,33 @@ import Blog from "./components/Blog";
 import Careers from "./components/Careers";
 import CareerPage from "./components/CareerPage";
 import Advertisement from "./components/Advertisement";
-import { autoLogin } from "./utils/autoLogin";
+import EmergencyDashboard from "./components/EmergencyDashboard";
+import EmergencyRequestForm from "./components/EmergencyRequestForm";
+import EmergencyContactForm from "./components/EmergencyContactForm";
+import EmergencyTestPage from "./components/EmergencyTestPage";
+import AmbulanceTracker from "./components/AmbulanceTracker";
+import EmergencyStatusBanner from "./components/EmergencyStatusBanner";
+import EmergencyChat from "./components/EmergencyChat";
+import DoctorEmergencyChat from "./components/DoctorEmergencyChat";
+import EmergencyVideoChat from "./components/EmergencyVideoChat";
+import DoctorEmergencyVideoChat from "./components/DoctorEmergencyVideoChat";
+import EmergencyVideoChatForm from "./components/EmergencyVideoChatForm";
+import { autoLogin, isLoggedIn } from "./utils/autoLogin";
 import FoodDelivery from "./components/FoodDelivery";
-import { useAuth } from './context/AuthContext';
+import EmailDemoPage from "./components/EmailDemoPage";
 
 function App() {
-  const { isAuthenticated, login } = useAuth();
-  const [autoLoginAttempted, setAutoLoginAttempted] = React.useState(false);
-  
-  // Auto login for development (only if not already authenticated and not attempted)
+  // Auto login for development (only if not already logged in)
   React.useEffect(() => {
-    if (!isAuthenticated && !autoLoginAttempted) {
-      setAutoLoginAttempted(true);
+    if (!isLoggedIn()) {
       autoLogin().then((success) => {
         if (success) {
           console.log("Auto login completed");
-          // Get the stored user data and update the auth context
-          const storedUser = localStorage.getItem('user');
-          const storedToken = localStorage.getItem('token');
-          if (storedUser && storedToken) {
-            try {
-              const userData = JSON.parse(storedUser);
-              // Create the expected login response format for AuthContext
-              const loginData = {
-                user: userData,
-                token: {
-                  access_token: storedToken,
-                  token_type: 'bearer',
-                  user_type: userData.role || 'user'
-                }
-              };
-              login(loginData);
-            } catch (error) {
-              console.error("Failed to update auth context after auto login:", error);
-            }
-          }
+          window.location.reload(); // Refresh to apply the token
         }
       });
     }
-  }, [isAuthenticated, autoLoginAttempted, login]);
+  }, []);
   const location = useLocation();
   const isService = location.pathname.startsWith("/services");
   const isDoctorRoute = location.pathname.startsWith("/doctors");
@@ -96,50 +89,125 @@ function App() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <ScrollToTop />
-      {!isDoctorRoute && !isLogin && <Navbar />}
+      {/* Emergency Status Banner */}
+      <EmergencyStatusBanner />
 
-<Routes>
+      {/* Animated Background for Home Page */}
+      <div className="animated-theme-bg">
+        <div className="bg-circle"></div>
+        <div className="bg-circle"></div>
+        <div className="bg-circle"></div>
+        <div className="bg-circle"></div>
+        <div className="bg-grid"></div>
+      </div>
+      <ScrollToTop />
+      {!isDoctorRoute &&
+        !isVideoChat &&
+        !isAdmin &&
+        !isMedicine &&
+        !isFooterPage &&
+        !isFoodDelivery &&
+        !isLogin && <Navbar />}
+
+      <Routes>
         <Route path="/" element={<AiChatSection />} />
         <Route path="/home" element={<AiChatSection />} />
+        <Route path="/bookings/:doctorName" element={<BookingForm />} />
         <Route path="/services" element={<Services />} />
         <Route path="/doctors" element={<Doctors />} />
         <Route path="/askai" element={<ChatBot />} />
+        <Route path="/new-chat" element={<ChatBot isNewChat={true} />} />
+        <Route path="/yoga" element={<ChatBot initialPanel="yoga" />} />
+        <Route
+          path="/meditation"
+          element={<ChatBot initialPanel="meditation" />}
+        />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/medicine-store" element={<SimpleMedicineStore />} />
 
-        {/* Appointment Flow - Unified */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/appointments" element={<AppointmentFlow />} />
-          <Route path="/bookings/:doctorName" element={<AppointmentFlow />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/food-delivery" element={<FoodDelivery />} />
         </Route>
-
-        {/* Emergency */}
+        {/* Hidden Admin Routes - Using unusual path */}
+        <Route element={<AdminRoute />}>
+          <Route path="/system/admin" element={<AdminDashboard />} />
+          <Route
+            path="/system/admin/medicine"
+            element={<AdminMedicineStore />}
+          />
+          <Route path="/system/admin/doctors" element={<DoctorsManagement />} />
+        </Route>
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/emergency" element={<CallToActionChat />} />
         <Route path="/emergency/call-ambulance" element={<AmbulanceCall />} />
+        <Route path="/medicine-store" element={<SimpleMedicineStore />} />
 
-        {/* Static Pages */}
-        <Route path="/support" element={<Support />} />
-        <Route path="/about" element={<AboutUs />} />
-        <Route path="/blog" element={<Blog />} />
-        <Route path="/careers" element={<Careers />} />
-        <Route path="/careers/:jobTitle" element={<CareerPage />} />
+        {/* Emergency Routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/emergency/dashboard" element={<EmergencyDashboard />} />
+          <Route path="/emergency/create" element={<EmergencyRequestForm />} />
+          <Route
+            path="/emergency/contacts/add"
+            element={<EmergencyContactForm />}
+          />
+          <Route
+            path="/emergency/contacts/edit/:id"
+            element={<EmergencyContactForm />}
+          />
+          <Route path="/emergency/tracker" element={<AmbulanceTracker />} />
+          <Route
+            path="/emergency-chat/:sessionId"
+            element={<EmergencyChat />}
+          />
+          <Route
+            path="/emergency-video-chat/:sessionId"
+            element={<EmergencyVideoChat />}
+          />
+          <Route
+            path="/emergency/video-chat"
+            element={<EmergencyVideoChatForm />}
+          />
+        </Route>
+        <Route path="/emergency/test" element={<EmergencyTestPage />} />
+
+        {/* Email Testing Routes */}
+        <Route path="/email-test" element={<EmailDemoPage />} />
+
+        {/* Doctor Emergency Chat Routes */}
+        <Route
+          path="/doctor/emergency-chat"
+          element={<DoctorEmergencyChat />}
+        />
+        <Route
+          path="/doctor/emergency-video-chat"
+          element={<DoctorEmergencyVideoChat />}
+        />
+
+        {/* Support and About Routes */}
+        <Route path="/direct/24/7support" element={<Support />} />
+        <Route path="/direct/aboutus" element={<AboutUs />} />
+        <Route path="/direct/services" element={<Services />} />
+        <Route path="/direct/blog" element={<Blog />} />
+        <Route path="/direct/careers" element={<Careers />} />
+        <Route path="/direct/apply/:jobTitle" element={<CareerPage />} />
+        <Route path="/direct/advertisement" element={<Advertisement />} />
+        <Route path="/direct/doctors" element={<Doctors />} />
+        <Route path="/about-doctor" element={<AboutDoctor />} />
         <Route path="/about-doctor/:doctorId" element={<AboutDoctor />} />
-        
-        {/* Doctor Routes */}
         <Route path="/doctors/register" element={<DoctorRegistration />} />
         <Route path="/doctors/login" element={<DrLogin />} />
+
+        {/* New doctor routes */}
         <Route path="/doctors/pages" element={<DoctorPages />}>
-          <Route index element={<DoctorDashboard />} />
           <Route path="dashboard" element={<DoctorDashboard />} />
           <Route path="editprofile" element={<EditDoctorProfile />} />
           <Route path="earnings" element={<DoctorEarnings />} />
-          <Route path="appointments" element={<DoctorAppointment />} />
-          <Route path="appointments/:date" element={<DoctorAppointment />} />
+          <Route path="appointments">
+            <Route index element={<DoctorAppointment />} />
+            <Route path=":date" element={<AppointmentList />} />
+          </Route>
+          <Route index element={<DoctorDashboard />} />
         </Route>
 
         {/* Global catch-all route */}
@@ -162,8 +230,18 @@ function App() {
         />
       </Routes>
 
-<Footer />
-      {!isDoctorRoute && !isChatbot && <AssistantCharacter />}
+      {!isChatbot && !isVideoChat && !isAdmin && <Footer />}
+      {!isDoctorRoute &&
+        !isChatbot &&
+        !inEmergency &&
+        !ambulanceCalled &&
+        !isAdminDashboard &&
+        !isMedicineStore &&
+        !isService &&
+        !isProfile &&
+        !isAdmin &&
+        !isFoodDelivery &&
+        !yogapage && <AssistantCharacter />}
     </div>
   );
 }

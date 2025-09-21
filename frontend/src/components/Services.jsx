@@ -1,66 +1,28 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { doctorsAPI } from "../config/api";
+import doctors from "../data/doctors";
+import specializations from "../data/specializations";
 import Select from "react-select";
 
 const Services = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // State for doctors and specializations
-  const [doctors, setDoctors] = useState([]);
-  const [specializations, setSpecializations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  
+  const options = [
+    { value: "", label: "All Specializations" },
+    ...specializations.map((spec) => ({ value: spec, label: spec })),
+  ];
+
   const [selectedSpec, setSelectedSpec] = useState("");
   const [userBudget, setUserBudget] = useState("");
   const [minRequiredFee, setMinRequiredFee] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
   const [wasDismissed, setWasDismissed] = useState(false);
 
-  const options = [
-    { value: "", label: "All Specializations" },
-    ...specializations.map((spec) => ({ value: spec, label: spec })),
-  ];
-
-  // Fetch doctors and specializations
-  useEffect(() => {
-    fetchDoctorsAndSpecializations();
-  }, []);
-
   useEffect(() => {
     if (location.state?.spec) {
       setSelectedSpec(location.state.spec);
     }
   }, [location.state]);
-
-  const fetchDoctorsAndSpecializations = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      // Fetch all doctors
-      const doctorsResponse = await doctorsAPI.getAllDoctors({
-        is_verified: true,
-        is_active: true,
-      });
-
-      // The API returns the data directly, not wrapped in a success object
-      const doctorsData = doctorsResponse.data || [];
-      setDoctors(doctorsData);
-
-      // Extract unique specializations from doctors
-      const uniqueSpecs = [...new Set(doctorsData.map(doc => doc.specialization))];
-      setSpecializations(uniqueSpecs.filter(Boolean).sort());
-      
-    } catch (error) {
-      console.error("Error fetching doctors:", error);
-      setError("Failed to load doctors. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filteredBySpec = selectedSpec
     ? doctors.filter((doctor) => doctor.specialization === selectedSpec)
@@ -69,7 +31,7 @@ const Services = () => {
   const filteredDoctors =
     userBudget !== ""
       ? filteredBySpec.filter(
-          (doc) => parseInt(userBudget) >= parseInt(doc.consultation_fee || 0)
+          (doc) => parseInt(userBudget) >= parseInt(doc.fee)
         )
       : filteredBySpec;
 
@@ -80,7 +42,7 @@ const Services = () => {
       filteredBySpec.length > 0 &&
       !wasDismissed
     ) {
-      const minFee = Math.min(...filteredBySpec.map((d) => parseInt(d.consultation_fee || 0)));
+      const minFee = Math.min(...filteredBySpec.map((d) => parseInt(d.fee)));
       setMinRequiredFee(minFee);
       setShowDialog(true);
     } else {
@@ -206,21 +168,7 @@ const Services = () => {
 
         {/* Doctor Grid */}
         <div className="h-[calc(100vh-250px)] overflow-y-auto pr-2">
-          {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-            </div>
-          ) : error ? (
-            <div className="text-center py-12">
-              <p className="text-red-600 mb-4">{error}</p>
-              <button
-                onClick={fetchDoctorsAndSpecializations}
-                className="bg-[#7c3aed] text-white px-4 py-2 rounded-lg hover:bg-[#6d28d9] transition-colors"
-              >
-                Try Again
-              </button>
-            </div>
-          ) : filteredDoctors.length > 0 ? (
+          {filteredDoctors.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-8">
               {filteredDoctors.map((doctor, index) => (
                 <div
@@ -231,17 +179,15 @@ const Services = () => {
                   <div className="p-6">
                     <div
                       className="flex flex-col items-center text-center cursor-pointer"
-                      onClick={() => navigate(`/about-doctor/${doctor._id || doctor.id}`)}
+                      onClick={() => navigate(`/about-doctor/${doctor.id}`)}
                     >
-                      <div className="w-32 h-32 rounded-full bg-purple-100 flex items-center justify-center mb-4">
-                        <div className="w-24 h-24 rounded-full bg-purple-200 flex items-center justify-center">
-                          <span className="text-2xl font-bold text-purple-600">
-                            {doctor.full_name?.split(' ').map(n => n[0]).join('') || 'DR'}
-                          </span>
-                        </div>
-                      </div>
+                      <img
+                        src={doctor.image}
+                        alt={doctor.name}
+                        className="w-32 h-32 object-cover rounded-full border-4 border-[#4f7cac] hover:border-[#a78bfa] transition-all duration-300"
+                      />
                       <h3 className="text-xl font-bold text-[#4f7cac]">
-                        {doctor.full_name}
+                        Dr. {doctor.name}
                       </h3>
                       <p className="text-[#7c3aed] font-medium">
                         {doctor.specialization}
@@ -251,24 +197,24 @@ const Services = () => {
                           <span className="text-[#4f7cac] font-medium">
                             Experience:
                           </span>
-                          <span>{doctor.experience_years} years</span>
+                          <span>{doctor.experience}</span>
                         </p>
                         <p className="flex justify-between">
                           <span className="text-[#4f7cac] font-medium">
-                            License:
+                            Languages:
                           </span>
-                          <span className="text-sm">{doctor.license_number}</span>
+                          <span>{doctor.languages}</span>
                         </p>
                         <p className="flex justify-between font-bold">
                           <span className="text-[#4f7cac]">Fee:</span>
-                          <span>₹{doctor.consultation_fee}</span>
+                          <span>₹{doctor.fee}</span>
                         </p>
                       </div>
                     </div>
                     <button
                       className="mt-6 w-full bg-gradient-to-r from-[#6d28d9] to-[#7c3aed] text-white py-2 px-4 rounded-lg font-medium shadow-md hover:shadow-lg transition-all"
                       onClick={() =>
-                        navigate(`/about-doctor/${doctor._id || doctor.id}`)
+                        navigate(`/bookings/${encodeURIComponent(doctor.name)}`)
                       }
                     >
                       Book Appointment

@@ -1,324 +1,366 @@
-// Updated for FastAPI backend - uses the new API helpers from config/api.js
-import { medicineAPI, contactAPI } from '../config/api';
+import { MEDICINE_STORE_API } from '../config/api';
 
-// Medicine API calls (updated for FastAPI backend)
-export const productApi = {
-  // Get all medicines with filters
-  getAll: async (filters = {}) => {
-    try {
-      const response = await medicineAPI.getMedicines(filters);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching medicines:', error);
-      throw error.response?.data || error;
-    }
-  },
+// Helper function to get auth token
+const getAuthToken = () => {
+  return localStorage.getItem('token') || sessionStorage.getItem('token');
+};
 
-  // Get medicine by ID
-  getById: async (id) => {
-    try {
-      const response = await medicineAPI.getMedicine(id);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching medicine:', error);
-      throw error.response?.data || error;
-    }
-  },
+// Helper function to make API calls for medicine store (non-admin)
+const apiCall = async (endpoint, options = {}) => {
+  const token = getAuthToken();
+  
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
 
-  // Get medicine categories (this might need to be implemented in backend)
-  getCategories: async () => {
-    try {
-      // For now, return static categories until backend implements this
-      return ['Pain Relief', 'Antibiotics', 'Vitamins', 'First Aid', 'Supplements'];
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      throw error.response?.data || error;
+  const config = {
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...options.headers
     }
+  };
+
+  try {
+    const response = await fetch(`${MEDICINE_STORE_API}${endpoint}`, config);
+    
+    // Check if response is JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('API Error: Response is not JSON. Status:', response.status, 'Content-Type:', contentType);
+      throw new Error(`Server returned non-JSON response. Status: ${response.status}. Please check if the backend server is running.`);
+    }
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('API Error:', error);
+    throw error;
   }
 };
 
-// Cart API calls (updated for FastAPI backend)
+// Helper function to make API calls for admin operations
+const adminApiCall = async (endpoint, options = {}) => {
+  const token = getAuthToken();
+  
+  console.log('Admin API Call:', endpoint);
+  console.log('Token:', token ? 'Present' : 'Missing');
+  
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+
+  const config = {
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...options.headers
+    }
+  };
+
+  console.log('Request config:', {
+    url: `http://localhost:5000/api/hidden-admin${endpoint}`,
+    method: options.method || 'GET',
+    headers: config.headers
+  });
+
+  try {
+    // Use the hidden admin endpoint for admin operations
+    const response = await fetch(`http://localhost:5000/api/hidden-admin${endpoint}`, config);
+    
+    // Check if response is JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('Admin API Error: Response is not JSON. Status:', response.status, 'Content-Type:', contentType);
+      throw new Error(`Server returned non-JSON response. Status: ${response.status}. Please check if the backend server is running.`);
+    }
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Admin API Error:', error);
+    throw error;
+  }
+};
+
+// Product API calls
+export const productApi = {
+  // Get all products with filters
+  getAll: async (filters = {}) => {
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value);
+      }
+    });
+    
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/products?${queryString}` : '/products';
+    
+    return apiCall(endpoint);
+  },
+
+  // Get product by ID
+  getById: async (id) => {
+    return apiCall(`/products/${id}`);
+  },
+
+  // Get product categories
+  getCategories: async () => {
+    return apiCall('/products/categories');
+  }
+};
+
+// Cart API calls
 export const cartApi = {
   // Get user's cart
   getCart: async () => {
-    try {
-      const response = await medicineAPI.getCart();
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching cart:', error);
-      throw error.response?.data || error;
-    }
+    return apiCall('/cart');
   },
 
   // Add item to cart
-  addToCart: async (medicine_id, quantity = 1) => {
-    try {
-      const response = await medicineAPI.addToCart({ medicine_id, quantity });
-      return response.data;
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      throw error.response?.data || error;
-    }
+  addToCart: async (productId, quantity = 1) => {
+    return apiCall('/cart/add', {
+      method: 'POST',
+      body: JSON.stringify({ productId, quantity })
+    });
   },
 
-  // Update cart item quantity (may need to be implemented in backend)
-  updateCartItem: async (medicineId, quantity) => {
-    try {
-      // For now, remove and re-add with new quantity
-      await medicineAPI.removeFromCart(medicineId);
-      const response = await medicineAPI.addToCart({ medicine_id: medicineId, quantity });
-      return response.data;
-    } catch (error) {
-      console.error('Error updating cart item:', error);
-      throw error.response?.data || error;
-    }
+  // Update cart item quantity
+  updateCartItem: async (cartItemId, quantity) => {
+    return apiCall(`/cart/${cartItemId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ quantity })
+    });
   },
 
   // Remove item from cart
-  removeFromCart: async (medicineId) => {
-    try {
-      const response = await medicineAPI.removeFromCart(medicineId);
-      return response.data;
-    } catch (error) {
-      console.error('Error removing from cart:', error);
-      throw error.response?.data || error;
-    }
+  removeFromCart: async (cartItemId) => {
+    return apiCall(`/cart/${cartItemId}`, {
+      method: 'DELETE'
+    });
   },
 
   // Clear entire cart
   clearCart: async () => {
-    try {
-      const response = await medicineAPI.clearCart();
-      return response.data;
-    } catch (error) {
-      console.error('Error clearing cart:', error);
-      throw error.response?.data || error;
-    }
+    return apiCall('/cart', {
+      method: 'DELETE'
+    });
   },
 
-  // Get cart summary (same as getCart for now)
+  // Get cart summary
   getCartSummary: async () => {
-    return cartApi.getCart();
+    return apiCall('/cart/summary');
   }
 };
 
-// Order API calls (updated for FastAPI backend)
+// Order API calls
 export const orderApi = {
   // Create new order
   createOrder: async (orderData) => {
-    try {
-      const response = await medicineAPI.createOrder(orderData);
-      return response.data;
-    } catch (error) {
-      console.error('Error creating order:', error);
-      throw error.response?.data || error;
-    }
+    return apiCall('/orders', {
+      method: 'POST',
+      body: JSON.stringify(orderData)
+    });
   },
 
   // Get user's orders
   getUserOrders: async (filters = {}) => {
-    try {
-      const response = await medicineAPI.getUserOrders(filters);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      throw error.response?.data || error;
-    }
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value);
+      }
+    });
+    
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/orders?${queryString}` : '/orders';
+    
+    return apiCall(endpoint);
   },
 
-  // Get order by ID (may need to be implemented in backend)
+  // Get order by ID
   getOrderById: async (id) => {
-    try {
-      // This endpoint may need to be added to FastAPI backend
-      const response = await medicineAPI.getUserOrders({ order_id: id });
-      return response.data[0]; // Return first order if found
-    } catch (error) {
-      console.error('Error fetching order:', error);
-      throw error.response?.data || error;
-    }
+    return apiCall(`/orders/${id}`);
   },
 
-  // Cancel order (may need to be implemented in backend)
+  // Cancel order
   cancelOrder: async (id) => {
-    try {
-      // This functionality may need to be implemented in FastAPI backend
-      console.warn('Cancel order functionality not implemented in FastAPI backend yet');
-      throw new Error('Cancel order functionality not available');
-    } catch (error) {
-      console.error('Error cancelling order:', error);
-      throw error.response?.data || error;
-    }
+    return apiCall(`/orders/${id}/cancel`, {
+      method: 'PUT'
+    });
   },
 
-  // Check order status (may need to be implemented in backend)
+  // Check order status (public endpoint)
   checkOrderStatus: async (orderNumber) => {
-    try {
-      // This functionality may need to be implemented in FastAPI backend
-      console.warn('Order status check functionality not implemented in FastAPI backend yet');
-      throw new Error('Order status check functionality not available');
-    } catch (error) {
-      console.error('Error checking order status:', error);
-      throw error.response?.data || error;
-    }
+    return apiCall(`/order-status/${orderNumber}`);
   }
 };
 
-// Address API calls (may need to be implemented in FastAPI backend)
+// Address API calls
 export const addressApi = {
   // Get user's addresses
   getUserAddresses: async () => {
-    try {
-      // This functionality may need to be implemented in FastAPI backend
-      console.warn('Address management not implemented in FastAPI backend yet');
-      return [];
-    } catch (error) {
-      console.error('Error fetching addresses:', error);
-      throw error.response?.data || error;
-    }
+    return apiCall('/addresses');
   },
 
   // Add new address
   addAddress: async (addressData) => {
-    try {
-      // This functionality may need to be implemented in FastAPI backend
-      console.warn('Address management not implemented in FastAPI backend yet');
-      throw new Error('Address management not available');
-    } catch (error) {
-      console.error('Error adding address:', error);
-      throw error.response?.data || error;
-    }
+    return apiCall('/addresses', {
+      method: 'POST',
+      body: JSON.stringify(addressData)
+    });
   },
 
-  // For other address methods, similar implementation...
+  // Update address
   updateAddress: async (id, addressData) => {
-    throw new Error('Address management not available');
+    return apiCall(`/addresses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(addressData)
+    });
   },
 
+  // Delete address
   deleteAddress: async (id) => {
-    throw new Error('Address management not available');
+    return apiCall(`/addresses/${id}`, {
+      method: 'DELETE'
+    });
   },
 
+  // Set default address
   setDefaultAddress: async (id) => {
-    throw new Error('Address management not available');
+    return apiCall(`/addresses/${id}/default`, {
+      method: 'PUT'
+    });
   },
 
+  // Get default address
   getDefaultAddress: async () => {
-    throw new Error('Address management not available');
+    return apiCall('/addresses/default');
   }
 };
 
-// Admin API calls (updated for FastAPI backend)
+// Admin API calls
 export const adminApi = {
-  // Create medicine
-  createProduct: async (medicineData) => {
-    try {
-      const response = await medicineAPI.createMedicine(medicineData);
-      return response.data;
-    } catch (error) {
-      console.error('Error creating medicine:', error);
-      throw error.response?.data || error;
-    }
+  // Create product
+  createProduct: async (productData) => {
+    return adminApiCall('/products', {
+      method: 'POST',
+      body: JSON.stringify(productData)
+    });
   },
 
-  // Update medicine
-  updateProduct: async (id, medicineData) => {
-    try {
-      const response = await medicineAPI.updateMedicine(id, medicineData);
-      return response.data;
-    } catch (error) {
-      console.error('Error updating medicine:', error);
-      throw error.response?.data || error;
-    }
+  // Update product
+  updateProduct: async (id, productData) => {
+    return adminApiCall(`/products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(productData)
+    });
   },
 
-  // Delete medicine
+  // Delete product
   deleteProduct: async (id) => {
-    try {
-      const response = await medicineAPI.deleteMedicine(id);
-      return response.data;
-    } catch (error) {
-      console.error('Error deleting medicine:', error);
-      throw error.response?.data || error;
-    }
+    return adminApiCall(`/products/${id}`, {
+      method: 'DELETE'
+    });
   },
 
-  // Update medicine stock
-  updateStock: async (id, stock_quantity) => {
-    try {
-      const response = await medicineAPI.updateMedicine(id, { stock_quantity });
-      return response.data;
-    } catch (error) {
-      console.error('Error updating stock:', error);
-      throw error.response?.data || error;
-    }
+  // Update product stock
+  updateStock: async (id, stock) => {
+    return adminApiCall(`/products/${id}/stock`, {
+      method: 'PUT',
+      body: JSON.stringify({ stock })
+    });
   },
 
-  // Get all orders for admin (may need to be implemented)
+  // Get all orders for admin
   getAllOrders: async (filters = {}) => {
-    try {
-      // This may need admin-specific order endpoint in FastAPI
-      console.warn('Admin order management not fully implemented in FastAPI backend yet');
-      return [];
-    } catch (error) {
-      console.error('Error fetching all orders:', error);
-      throw error.response?.data || error;
-    }
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value);
+      }
+    });
+    
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/orders?${queryString}` : '/orders';
+    
+    return adminApiCall(endpoint);
   },
 
-  // Other admin functions - may need implementation in FastAPI backend
+  // Update order status
   updateOrderStatus: async (id, status) => {
-    throw new Error('Order status update not available');
+    return adminApiCall(`/orders/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status })
+    });
   },
 
+  // Get dashboard statistics
   getDashboardStats: async () => {
-    throw new Error('Dashboard stats not available');
+    return adminApiCall('/dashboard');
   },
 
+  // Get low stock products
   getLowStockProducts: async (threshold = 10) => {
-    try {
-      // Filter medicines with low stock
-      const response = await medicineAPI.getMedicines({ stock_quantity__lt: threshold });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching low stock products:', error);
-      throw error.response?.data || error;
-    }
+    return adminApiCall(`/products/low-stock?threshold=${threshold}`);
+  },
+
+  // Bulk update stock
+  bulkUpdateStock: async (updates) => {
+    return adminApiCall('/products/bulk-stock-update', {
+      method: 'POST',
+      body: JSON.stringify({ updates })
+    });
+  },
+
+  // Get sales report
+  getSalesReport: async (startDate, endDate, groupBy = 'day') => {
+    const queryParams = new URLSearchParams({
+      startDate,
+      endDate,
+      groupBy
+    });
+    
+    return adminApiCall(`/reports/sales?${queryParams}`);
   }
 };
 
-// Payment API calls (may need to be implemented in FastAPI backend)
+// Payment API calls
 export const paymentApi = {
   // Process COD payment and place order
   processCODPayment: async (orderData) => {
-    try {
-      // For now, just create the order with COD payment method
-      const response = await medicineAPI.createOrder({
-        ...orderData,
-        payment_method: 'cash_on_delivery'
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error processing COD payment:', error);
-      throw error.response?.data || error;
-    }
+    return apiCall('/payment/cod', {
+      method: 'POST',
+      body: JSON.stringify(orderData)
+    });
   },
 
   // Get payment status for an order
   getPaymentStatus: async (orderId) => {
-    try {
-      // This functionality may need to be implemented
-      return { status: 'pending', payment_method: 'cash_on_delivery' };
-    } catch (error) {
-      console.error('Error fetching payment status:', error);
-      throw error.response?.data || error;
-    }
+    return apiCall(`/payment/status/${orderId}`);
   }
 };
 
-// Utility functions
+// Utility function to check if user is authenticated
 export const isAuthenticated = () => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     const userStr = localStorage.getItem('user');
     return !!(token && userStr);
   } catch (error) {
@@ -327,13 +369,14 @@ export const isAuthenticated = () => {
   }
 };
 
+// Utility function to check if user is admin
 export const isAdmin = () => {
   try {
     const userStr = localStorage.getItem('user');
     if (!userStr) return false;
     
     const user = JSON.parse(userStr);
-    return user && (user.role === 'admin' || user.is_admin);
+    return user && user.role === 'admin';
   } catch (error) {
     console.error('Error checking admin status:', error);
     return false;

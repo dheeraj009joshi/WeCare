@@ -15,36 +15,10 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import doctor from "../assets/R.png";
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { doctorsAPI } from "../config/api";
+import specializations from "../data/specializations";
 
 const ServicesSection = () => {
   const navigate = useNavigate();
-  const [specializations, setSpecializations] = useState([]);
-
-  useEffect(() => {
-    fetchSpecializations();
-  }, []);
-
-  const fetchSpecializations = async () => {
-    try {
-      const response = await doctorsAPI.getAllDoctors({
-        is_verified: true,
-        is_active: true,
-      });
-
-      // The API returns the data directly, not wrapped in a success object
-      const doctorsData = response.data || [];
-      // Extract unique specializations
-      const uniqueSpecs = [...new Set(doctorsData.map(doc => doc.specialization))];
-      setSpecializations(uniqueSpecs.filter(Boolean).sort());
-      
-    } catch (error) {
-      console.error("Error fetching specializations:", error);
-      // Fallback to default specializations if API fails
-      setSpecializations(["General Medicine", "Cardiology", "Pediatrics", "Dermatology", "Neurology", "Orthopedics"]);
-    }
-  };
 
   const handleCardClick = (serviceId) => {
     navigate(`/doctors/${serviceId}`); // Navigates to e.g., "/doctor/general-physician"

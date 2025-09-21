@@ -1,29 +1,26 @@
-import { authService } from '../services/authService';
-import { AUTH_API } from '../config/api';
-import api from '../config/api';
+import axios from "axios";
 
-// Updated for FastAPI backend
-const API_BASE = AUTH_API;
+const API_BASE = "http://localhost:5000/api/auth";
 
-// Use the new auth service for login/register
-export const loginUser = (credentials) => authService.login(credentials);
-export const registerUser = (userData) => authService.register(userData);
+export const loginUser = (formData) =>
+  axios.post(`${API_BASE}/login`, formData);
 
-// Logout (client-side only since FastAPI uses stateless JWT)
-export const logoutUser = (token) => {
-  // FastAPI doesn't need server-side logout for JWT tokens
-  // Just clear client-side storage
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  localStorage.removeItem('userId');
-  localStorage.removeItem('userType');
-  localStorage.removeItem('loginTime');
-  return Promise.resolve({ success: true });
-};
+export const logoutUser = (token) =>
+  axios.post(`${API_BASE}/logout`, {}, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
 
-// Profile endpoints (these may need to be implemented in FastAPI)
 export const getUserProfile = (token) =>
-  api.get(`${API_BASE}/profile`); // Token added automatically by interceptor
+  axios.get(`${API_BASE}/profile`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
 export const updateUserProfile = (token, data) =>
-  api.put(`${API_BASE}/profile`, data); // Token added automatically by interceptor 
+  axios.put(`${API_BASE}/profile`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+export const registerUser = (formData) =>
+  axios.post(`${API_BASE}/register`, formData); 

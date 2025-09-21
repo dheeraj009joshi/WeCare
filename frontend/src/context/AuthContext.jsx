@@ -6,31 +6,23 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Login function - Updated for FastAPI backend response format
-  const login = (responseData) => {
-    console.log('🔐 Login function called with:', responseData);
+  // Login function
+  const login = (userData) => {
+    console.log('🔐 Login function called with:', userData);
     
-    // FastAPI returns: { user: {...}, token: { access_token, token_type, user_type } }
-    if (!responseData || !responseData.token?.access_token || !responseData.user) {
-      console.error('❌ Invalid login data - missing token or user data');
+    // Ensure we have the essential data
+    if (!userData || !userData.token) {
+      console.error('❌ Invalid login data - missing token');
       return;
     }
 
-    const { user: userData, token: tokenData } = responseData;
-
-    // Normalize user data structure for FastAPI response
+    // Normalize user data structure
     const userWithRole = {
       id: userData.id || userData._id,
       name: userData.name || userData.username || 'User',
       email: userData.email,
-      phone: userData.phone,
-      role: tokenData.user_type || 'user', // 'user', 'doctor', or 'admin'
-      is_admin: userData.is_admin || false,
-      is_active: userData.is_active !== undefined ? userData.is_active : true,
-      token: tokenData.access_token,
-      token_type: tokenData.token_type || 'bearer',
-      created_at: userData.created_at,
-      updated_at: userData.updated_at,
+      role: userData.role || 'patient',
+      token: userData.token,
       // Preserve any other user properties
       ...userData
     };
@@ -46,15 +38,13 @@ export const AuthProvider = ({ children }) => {
     setUser(userWithRole);
     localStorage.setItem('user', JSON.stringify(userWithRole));
     localStorage.setItem('userId', userWithRole.id.toString());
-    localStorage.setItem('token', tokenData.access_token);
-    localStorage.setItem('userType', tokenData.user_type || 'user');
+    localStorage.setItem('token', userData.token);
     localStorage.setItem('loginTime', Date.now().toString());
     console.log('✅ User logged in and stored in localStorage');
     console.log('📦 Stored data:', {
       user: !!localStorage.getItem('user'),
       userId: !!localStorage.getItem('userId'),
       token: !!localStorage.getItem('token'),
-      userType: !!localStorage.getItem('userType'),
       loginTime: !!localStorage.getItem('loginTime')
     });
   };
@@ -66,14 +56,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
     localStorage.removeItem('userId');
     localStorage.removeItem('token');
-    localStorage.removeItem('userType');
     localStorage.removeItem('loginTime');
     console.log('✅ User logged out and localStorage cleared');
     console.log('📦 Stored data after logout:', {
       user: !!localStorage.getItem('user'),
       userId: !!localStorage.getItem('userId'),
       token: !!localStorage.getItem('token'),
-      userType: !!localStorage.getItem('userType'),
       loginTime: !!localStorage.getItem('loginTime')
     });
   };
@@ -124,12 +112,11 @@ export const AuthProvider = ({ children }) => {
           id: parsedUser.id || parsedUser._id
         };
         
-        // If no role is specified, default based on user type or fallback to 'user'
+        // If no role is specified, default to 'patient'
         if (!normalizedUser.role) {
-          const userType = localStorage.getItem('userType') || 'user';
-          normalizedUser.role = userType === 'doctor' ? 'doctor' : userType === 'admin' ? 'admin' : 'user';
+          normalizedUser.role = 'patient';
           localStorage.setItem('user', JSON.stringify(normalizedUser));
-          console.log(`🔄 Added default role "${normalizedUser.role}" to user`);
+          console.log('🔄 Added default role "patient" to user');
         }
         
         // Ensure userId is also stored separately
@@ -174,12 +161,10 @@ export const AuthProvider = ({ children }) => {
       user, 
       login, 
       logout, 
-      isAdmin: user?.role === 'admin' || user?.is_admin,
-      isUser: user?.role === 'user',
-      isPatient: user?.role === 'patient' || user?.role === 'user', // backward compatibility
+      isAdmin: user?.role === 'admin',
+      isPatient: user?.role === 'patient',
       isDoctor: user?.role === 'doctor',
-      isAuthenticated: !!user,
-      userType: user?.role || 'user'
+      isAuthenticated: !!user
     }}>
       {children}
     </AuthContext.Provider>

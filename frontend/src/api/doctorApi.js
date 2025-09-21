@@ -1,54 +1,76 @@
-import { authService } from '../services/authService';
-import { AUTH_API, APPOINTMENTS_API, CHAT_API } from '../config/api';
-import api from '../config/api';
+import axios from "axios";
 
-// Updated for FastAPI backend
-const API_BASE = AUTH_API;
-const DOCTOR_API_BASE = "http://localhost:4000/api"; // Base for doctor-specific endpoints
+const API_BASE = "http://localhost:5000/api/auth/doctor";
+const DOCTOR_API_BASE = "http://localhost:5000/api/doctor";
 
-// Authentication - Use new auth service
-export const loginDoctor = (credentials) => authService.doctorLogin(credentials);
-export const registerDoctor = (doctorData) => authService.doctorRegister(doctorData);
+// Authentication
+export const loginDoctor = (formData) =>
+  axios.post(`${API_BASE}/login`, formData);
 
-// Profile endpoints (may need to be implemented in FastAPI)
+export const registerDoctor = (formData) =>
+  axios.post(`${API_BASE}/register`, formData);
+
 export const getDoctorProfile = (token) =>
-  api.get(`${API_BASE}/doctor/profile`); // Token added automatically
+  axios.get(`${API_BASE}/profile`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
 export const updateDoctorProfile = (token, data) =>
-  api.put(`${API_BASE}/doctor/profile`, data); // Token added automatically
+  axios.put(`${API_BASE}/profile`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
-// Dashboard stats (may need to be implemented in FastAPI)
+// Dashboard
 export const getDashboardStats = (token) =>
-  api.get(`${DOCTOR_API_BASE}/admin/dashboard/stats`); // Token added automatically
+  axios.get(`${DOCTOR_API_BASE}/stats`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
-// Appointments - Use new appointments API
 export const getAppointments = (token, params = {}) =>
-  api.get(`${APPOINTMENTS_API}/doctor`, { params }); // Token added automatically
+  axios.get(`${DOCTOR_API_BASE}/appointments`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params
+  });
 
 export const updateAppointmentStatus = (token, appointmentId, data) =>
-  api.put(`${APPOINTMENTS_API}/${appointmentId}`, data); // Token added automatically
+  axios.put(`${DOCTOR_API_BASE}/appointments/${appointmentId}`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
-// Patient management (may need to be implemented)
 export const getPatients = (token, params = {}) =>
-  api.get(`${DOCTOR_API_BASE}/admin/patients`, { params }); // Token added automatically
+  axios.get(`${DOCTOR_API_BASE}/patients`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params
+  });
 
-// Messages - Use new chat API
 export const getMessages = (token, params = {}) =>
-  api.get(`${CHAT_API}/doctor/messages`, { params }); // Token added automatically
+  axios.get(`${DOCTOR_API_BASE}/messages`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params
+  });
 
 export const sendMessage = (token, data) =>
-  api.post(`${CHAT_API}/doctor/messages`, data); // Token added automatically
+  axios.post(`${DOCTOR_API_BASE}/messages`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
 export const markMessagesAsRead = (token, patientId) =>
-  api.put(`${CHAT_API}/messages/read/${patientId}`, {}); // Token added automatically
+  axios.put(`${DOCTOR_API_BASE}/messages/read/${patientId}`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
-// Doctor availability
 export const getAvailability = (token) =>
-  api.get(`${APPOINTMENTS_API}/doctor/availability`); // Token added automatically
+  axios.get(`${DOCTOR_API_BASE}/availability`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
 export const updateAvailability = (token, data) =>
-  api.post(`${APPOINTMENTS_API}/doctor/availability`, data); // Token added automatically
+  axios.put(`${DOCTOR_API_BASE}/availability`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
-// Earnings (may need to be implemented)
 export const getEarnings = (token, params = {}) =>
-  api.get(`${DOCTOR_API_BASE}/admin/doctor/earnings`, { params }); // Token added automatically 
+  axios.get(`${DOCTOR_API_BASE}/earnings`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params
+  }); 

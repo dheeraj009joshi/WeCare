@@ -1,25 +1,26 @@
 // Auto login utility for development
 export const autoLogin = async () => {
   try {
-    const formData = new FormData();
-    formData.append("username", "test@test.com");
-    formData.append("password", "testuser123");
-
-    const response = await fetch("http://localhost:8000/api/auth/login", {
+    const response = await fetch("http://localhost:5000/api/auth/login", {
       method: "POST",
-      body: formData,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: "test@test.com",
+        password: "test123"
+      }),
     });
 
     const data = await response.json();
 
-    if (data.token?.access_token || data.access_token) {
-      const token = data.token?.access_token || data.access_token;
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(data.user || data));
-      console.log("Auto login successful:", data);
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      console.log("Auto login successful:", data.user);
       return true;
     } else {
-      console.error("Auto login failed:", data);
+      console.error("Auto login failed:", data.message);
       return false;
     }
   } catch (error) {
