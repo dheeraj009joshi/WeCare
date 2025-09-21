@@ -1,0 +1,63 @@
+# version: "3.8"
+
+services:
+  frontend:
+    build:
+      context: . # root as build context
+      dockerfile: frontend/Dockerfile.dev
+    container_name: wecure_frontend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - ./frontend/.env
+    ports:
+      - "5173:5173"
+    # volumes:
+    #   - ./frontend:/app # Mount frontend source
+    #   - /app/node_modules # Keep node_modules inside container
+    command: npm run dev -- --host
+    networks:
+      - wecure_network
+
+  backend:
+    build:
+      context: . # root as build context
+      dockerfile: backend/Dockerfile.dev
+    container_name: wecure_backend
+    restart: unless-stopped
+    environment:
+      - DB_HOST=aws-1-ap-south-1.pooler.supabase.com
+      - DB_USER=postgres.hgadghokrtershbefoic
+      - DB_PASSWORD=U9VDFeu0rKH0OAOs
+      - DB_NAME=postgres
+      - DB_PORT=6543
+      - DATABASE_URL=postgresql://postgres.hgadghokrtershbefoic:U9VDFeu0rKH0OAOs@aws-1-ap-south-1.pooler.supabase.com:6543/postgres
+      - JWT_SECRET=7b553b2f9783baa22c38a81e0d7a6d2879f42c4e9ee62a62e6801c5b74406bc9f815febcaa121b57713f2495b1a7399474a6072c0e575aab44e1a13e382516dfe
+      - EMAIL_USER=tanukum.ss784@gmail.com
+      - EMAIL_PASSWORD=your-app-password
+      - FRONTEND_URL=http://localhost:5173
+      - PORT=5000
+      - NODE_ENV=development
+      - ADMIN_EMAIL=admin@wecure.com
+      - ADMIN_PASSWORD=admin123
+      - ADMIN_NAME=System Administrator
+      - ADMIN_PHONE=+91-9999999999
+      - GEMINI_API_KEY=AIzaSyC63YplvWNwe-yJqQVQHkV9tp5oxuuCNFk
+      - GEMINI_API_KEY_1=AIzaSyDwRGUvDNec8zLj_9suO8e_Yz74lJMeRgA
+      - GEMINI_API_KEY_2=AIzaSyBiaJwvDH_dv3RXjKvTY3G4Vj2lMBXBpIw
+      - GEMINI_API_KABIR=IzaSyD1El4exUG8G26v0em3HhMiY4wqmd6juGg
+    ports:
+      - "5000:5000"
+    # volumes:
+    #   - ./backend:/app # Mount backend source
+    #   - /app/node_modules # Keep node_modules inside container
+    command: npm run dev
+    networks:
+      - wecure_network
+
+
+
+networks:
+  wecure_network:
+    driver: bridge
